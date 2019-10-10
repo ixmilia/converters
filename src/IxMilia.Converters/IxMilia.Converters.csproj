@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard1.3</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IxMilia.Dxf\src\IxMilia.Dxf\IxMilia.Dxf.csproj" />
+    <ProjectReference Include="..\IxMilia.Pdf\src\IxMilia.Pdf\IxMilia.Pdf.csproj" />
+  </ItemGroup>
+
+</Project>

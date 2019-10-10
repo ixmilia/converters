@@ -1,0 +1,7 @@
+# ignore VS files
+*.suo
+*.user
+.vs/
+
+# ignore artifacts
+artifacts/
