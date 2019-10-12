@@ -9,30 +9,24 @@ namespace IxMilia.Converters
     {
         public PdfMeasurement PageWidth { get; }
         public PdfMeasurement PageHeight { get; }
+        public double Scale { get; }
 
-        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight)
+        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, double scale)
         {
             PageWidth = pageWidth;
             PageHeight = pageHeight;
+            Scale = scale;
         }
     }
 
-    public class DxfToPdfConverter : IConverter<DxfFile, PdfFile>
+    public class DxfToPdfConverter : IConverter<DxfFile, PdfFile, DxfToPdfConverterOptions>
     {
-        private DxfToPdfConverterOptions Options { get; }
-
-        public DxfToPdfConverter(DxfToPdfConverterOptions options)
-        {
-            Options = options;
-        }
-
-        public PdfFile Convert(DxfFile source)
+        public PdfFile Convert(DxfFile source, DxfToPdfConverterOptions options)
         {
             // adapted from https://github.com/ixmilia/bcad/blob/master/src/IxMilia.BCad.FileHandlers/Plotting/Pdf/PdfPlotter.cs
-            var extents = ExtentsViewPort(source);
-            var matrix = CreateTransformationMatrix(extents);
+            var matrix = CreateTransformationMatrix(source.ActiveViewPort, options);
             var pdf = new PdfFile();
-            var page = new PdfPage(Options.PageWidth, Options.PageHeight);
+            var page = new PdfPage(options.PageWidth, options.PageHeight);
             pdf.Pages.Add(page);
 
             var builder = new PdfPathBuilder();
@@ -84,22 +78,12 @@ namespace IxMilia.Converters
             return pdf;
         }
 
-        private Matrix4 CreateTransformationMatrix(DxfViewPort viewPort)
+        private static Matrix4 CreateTransformationMatrix(DxfViewPort viewPort, DxfToPdfConverterOptions options)
         {
-            var scale = Options.PageHeight.ConvertTo(PdfMeasurementType.Inch).RawValue / viewPort.ViewHeight;
             var projectionMatrix = Matrix4.Identity
-                * Matrix4.CreateScale(scale, scale, 1.0)
+                * Matrix4.CreateScale(options.Scale, options.Scale, 0.0)
                 * Matrix4.CreateTranslate(-viewPort.LowerLeft.X, -viewPort.LowerLeft.Y, 0.0);
             return projectionMatrix;
-        }
-
-        private DxfViewPort ExtentsViewPort(DxfFile dxf)
-        {
-            return new DxfViewPort()
-            {
-                LowerLeft = dxf.Header.MinimumDrawingExtents,
-                ViewHeight = dxf.Header.MaximumDrawingExtents.Y - dxf.Header.MinimumDrawingExtents.Y
-            };
         }
     }
 }

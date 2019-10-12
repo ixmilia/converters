@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Text;
 using IxMilia.Dxf;
+using IxMilia.Dxf.Entities;
 using IxMilia.Pdf;
 using Xunit;
 
@@ -8,15 +9,14 @@ namespace IxMilia.Converters.Test
 {
     public class DxfToPdfTests : TestBase<DxfFile, PdfFile>
     {
-        public override IConverter<DxfFile, PdfFile> GetConverter()
+        private string ConvertToString(DxfFile dxf, PdfMeasurement? pageWidth = null, PdfMeasurement? pageHeight = null, double scale = 1.0)
         {
-            var options = new DxfToPdfConverterOptions(PdfMeasurement.Inches(8.5), PdfMeasurement.Inches(11.0));
-            return new DxfToPdfConverter(options);
-        }
-
-        private string ConvertToString(DxfFile dxf)
-        {
-            var pdf = Convert(dxf);
+            var options = new DxfToPdfConverterOptions(
+                pageWidth ?? PdfMeasurement.Inches(8.5),
+                pageHeight ?? PdfMeasurement.Inches(11.0),
+                scale);
+            var converter = new DxfToPdfConverter();
+            var pdf = converter.Convert(dxf, options);
             using (var ms = new MemoryStream())
             {
                 pdf.Save(ms);
@@ -45,6 +45,31 @@ stream
 S
 endstream".Trim());
             Assert.Contains(expectedEmptyStream, pdf);
+        }
+
+        [Fact]
+        public void SimpleLineTest()
+        {
+            var dxf = new DxfFile();
+            dxf.ActiveViewPort = new DxfViewPort()
+            {
+                LowerLeft = new DxfPoint(0.0, 0.0, 0.0),
+                ViewHeight = 11.0,
+            };
+            // line from (0,0) to (8.5,11), but half scale
+            dxf.Entities.Add(new DxfLine(new DxfPoint(0.0, 0.0, 0.0), new DxfPoint(8.5, 11.0, 0.0)));
+            var pdf = ConvertToString(dxf, scale: 0.5);
+            // expected line from lower left of sheet to center
+            var expected = NormalizeCrLf(@"
+stream
+0 w
+0 0 0 RG
+0 0 0 rg
+0.00 0.00 m
+306.00 396.00 l
+S
+endstream".Trim());
+            Assert.Contains(expected, pdf);
         }
     }
 }
