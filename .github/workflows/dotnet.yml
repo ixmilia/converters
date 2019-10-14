@@ -6,6 +6,9 @@ jobs:
 
   linux:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        configuration: ['Debug', 'Release']
     steps:
     - uses: actions/checkout@v1
       with:
@@ -14,10 +17,13 @@ jobs:
       with:
         dotnet-version: '3.0.100'
     - name: Build and test
-      run: ./build-and-test.sh
+      run: ./build-and-test.sh --configuration ${{ matrix.configuration }}
 
   windows:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        configuration: ['Debug', 'Release']
     steps:
     - uses: actions/checkout@v1
       with:
@@ -26,4 +32,4 @@ jobs:
       with:
         dotnet-version: '3.0.100'
     - name: Build and test
-      run: .\build-and-test.cmd
+      run: .\build-and-test.cmd -c ${{ matrix.configuration }}
