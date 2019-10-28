@@ -3,5 +3,9 @@
 *.user
 .vs/
 
+# ignore vscode files
+.vscode/launch.json
+.vscode/tasks.json
+
 # ignore artifacts
 artifacts/
