@@ -29,7 +29,7 @@ namespace IxMilia.Converters
         }
 
         public ConverterDxfRect(DxfBoundingBox bbox)
-            : this(bbox.MinimumPoint.X, bbox.MinimumPoint.Y, bbox.MaximumPoint.X, bbox.MaximumPoint.Y)
+            : this(bbox.MinimumPoint.X, bbox.MaximumPoint.X, bbox.MinimumPoint.Y, bbox.MaximumPoint.Y)
         {
         }
 
