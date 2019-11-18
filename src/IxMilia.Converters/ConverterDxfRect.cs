@@ -1,4 +1,5 @@
 using System;
+using IxMilia.Dxf;
 
 namespace IxMilia.Converters
 {
@@ -25,6 +26,11 @@ namespace IxMilia.Converters
             this.Right = right;
             this.Bottom = bottom;
             this.Top = top;
+        }
+
+        public ConverterDxfRect(DxfBoundingBox bbox)
+            : this(bbox.MinimumPoint.X, bbox.MinimumPoint.Y, bbox.MaximumPoint.X, bbox.MaximumPoint.Y)
+        {
         }
 
         public override string ToString()
