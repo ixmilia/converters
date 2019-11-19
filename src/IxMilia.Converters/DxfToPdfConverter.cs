@@ -37,6 +37,9 @@ namespace IxMilia.Converters
 
     public class DxfToPdfConverter : IConverter<DxfFile, PdfFile, DxfToPdfConverterOptions>
     {
+        // TODO How to manage fonts? PDF has a dictionary of fonts...
+        private static readonly PdfFont Font = new PdfFontType1(PdfFontType1Type.Helvetica);
+
         public PdfFile Convert(DxfFile source, DxfToPdfConverterOptions options)
         {
             // adapted from https://github.com/ixmilia/bcad/blob/master/src/IxMilia.BCad.FileHandlers/Plotting/Pdf/PdfPlotter.cs
@@ -65,10 +68,8 @@ namespace IxMilia.Converters
             {
                 foreach (var entity in source.Entities.Where(e => e.Layer == layer.Name))
                 {
-                    foreach (IPdfPathItem pathItem in ConvertEntity(entity, layer, affine, scale))
-                    {
-                        AddPathItemToPage(pathItem);
-                    }
+                    TryConvertEntity(entity, layer, affine, scale, builder, page);
+                    // if that failed, emit some diagnostic hint? Callback?
                 }
             }
 
@@ -116,62 +117,122 @@ namespace IxMilia.Converters
         }
 
         #region Entity Conversions
-
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertEntity(DxfEntity entity, DxfLayer layer, Matrix4 affine, Matrix4 scale)
+        private static bool TryConvertEntity(DxfEntity entity, DxfLayer layer, Matrix4 affine, Matrix4 scale, PdfPathBuilder builder, PdfPage page)
         {
-            var pdfStreamState = new PdfStreamState(
-                strokeColor: GetPdfColor(entity, layer),
-                strokeWidth: GetStrokeWidth(entity, layer));
             switch (entity)
             {
+                case DxfText text:
+                    // TODO flush path builder and recreate
+                    page.Items.Add(ConvertText(text, layer, affine, scale));
+                    return true;
                 case DxfLine line:
-                    return ConvertLine(line, affine, pdfStreamState);
+                    Add(ConvertLine(line, layer, affine), builder);
+                    return true;
+                case DxfModelPoint point:
+                    Add(ConvertPoint(point, layer, affine, scale), builder);
+                    return true;
                 case DxfArc arc:
-                    return ConvertArc(arc, affine, scale, pdfStreamState);
+                    Add(ConvertArc(arc, layer, affine, scale), builder);
+                    return true;
                 case DxfCircle circle:
-                    return ConvertCircle(circle, affine, scale, pdfStreamState);
+                    Add(ConvertCircle(circle, layer, affine, scale), builder);
+                    return true;
                 case DxfLwPolyline lwPolyline:
-                    return ConvertPolyline(lwPolyline, affine, scale, pdfStreamState);
+                    Add(ConvertPolyline(lwPolyline, layer, affine, scale), builder);
+                    return true;
                 default:
-                    return new IPdfPathItem[0];
+                    return false;
             }
+
+            void Add(IEnumerable<IPdfPathItem> items, PdfPathBuilder b)
+            {
+                foreach (IPdfPathItem item in items)
+                {
+                    b.Add(item);
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static PdfText ConvertText(DxfText text, DxfLayer layer, Matrix4 affine, Matrix4 scale)
+        {
+            // TODO horizontal and vertical justification (manual calculation for PDF, measure text?)
+            // TODO Thickness, Rotation, TextStyleName, SecondAlignmentPoint
+            // TODO IsTextUpsideDown, IsTextBackwards
+            // TODO RelativeXScaleFactor
+            // TODO TextHeight unit? Same as other scale?
+            // TODO TextStyleName probably maps to something meaningfull (bold, italic, etc?)
+            PdfMeasurement fontSize = scale.Transform(new Vector(0, text.TextHeight, 0))
+                .ToPdfPoint(PdfMeasurementType.Point).Y;
+            PdfPoint location = affine.Transform(text.Location).ToPdfPoint(PdfMeasurementType.Point);
+            var pdfStreamState = new PdfStreamState(GetPdfColor(text, layer));
+            return new PdfText(text.Value, Font, fontSize, location, pdfStreamState);
+        }
+
+        private static IEnumerable<IPdfPathItem> ConvertPoint(DxfModelPoint point, DxfLayer layer, Matrix4 affine, Matrix4 scale)
+        {
+            var p = affine.Transform(point.Location).ToPdfPoint(PdfMeasurementType.Point);
+            var thickness = scale.Transform(new Vector(point.Thickness, 0, 0)).ToPdfPoint(PdfMeasurementType.Point).X;
+            if (thickness.RawValue < 1)
+            {
+                thickness = PdfMeasurement.Points(1);
+            }
+            // TODO fill circle? For now fake it via stroke thickness.
+            var pdfStreamState = new PdfStreamState(
+                strokeColor: GetPdfColor(point, layer),
+                strokeWidth: thickness);
+            yield return new PdfCircle(p, thickness / 2, pdfStreamState);
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertLine(DxfLine line, Matrix4 affine, PdfStreamState pdfStreamState)
+        private static IEnumerable<IPdfPathItem> ConvertLine(DxfLine line, DxfLayer layer, Matrix4 affine)
         {
             var p1 = affine.Transform(line.P1).ToPdfPoint(PdfMeasurementType.Point);
             var p2 = affine.Transform(line.P2).ToPdfPoint(PdfMeasurementType.Point);
+            var pdfStreamState = new PdfStreamState(
+                strokeColor: GetPdfColor(line, layer),
+                strokeWidth: GetStrokeWidth(line, layer));
             yield return new PdfLine(p1, p2, pdfStreamState);
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertCircle(DxfCircle circle, Matrix4 affine, Matrix4 scale, PdfStreamState pdfStreamState)
+        private static IEnumerable<IPdfPathItem> ConvertCircle(DxfCircle circle, DxfLayer layer, Matrix4 affine, Matrix4 scale)
         {
+            var pdfStreamState = new PdfStreamState(
+                strokeColor: GetPdfColor(circle, layer),
+                strokeWidth: GetStrokeWidth(circle, layer));
             // a circle becomes an ellipse, unless aspect ratio is kept.
             var center = affine.Transform(circle.Center).ToPdfPoint(PdfMeasurementType.Point);
             var radius = scale.Transform(new Vector(circle.Radius, circle.Radius, circle.Radius))
                 .ToPdfPoint(PdfMeasurementType.Point);
             yield return new PdfEllipse(center, radius.X, radius.Y, state: pdfStreamState);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertArc(DxfArc arc, Matrix4 affine, Matrix4 scale, PdfStreamState pdfStreamState)
+        private static IEnumerable<IPdfPathItem> ConvertArc(DxfArc arc, DxfLayer layer, Matrix4 affine, Matrix4 scale)
         {
+            var pdfStreamState = new PdfStreamState(
+                strokeColor: GetPdfColor(arc, layer),
+                strokeWidth: GetStrokeWidth(arc, layer));
             var center = affine.Transform(arc.Center).ToPdfPoint(PdfMeasurementType.Point);
             var radius = scale.Transform(new Vector(arc.Radius, arc.Radius, arc.Radius))
                 .ToPdfPoint(PdfMeasurementType.Point);
             const double rotation = 0;
             double startAngleRad = arc.StartAngle * Math.PI / 180;
             double endAngleRad = arc.EndAngle * Math.PI / 180;
-            yield return new PdfEllipse(center, radius.X, radius.Y, rotation, startAngleRad, endAngleRad, pdfStreamState);
+            yield return new PdfEllipse(center, radius.X, radius.Y, rotation, startAngleRad, endAngleRad,
+                pdfStreamState);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertPolyline(DxfLwPolyline lwPolyline, Matrix4 affine,
-            Matrix4 scale, PdfStreamState pdfStreamState)
+        private static IEnumerable<IPdfPathItem> ConvertPolyline(DxfLwPolyline lwPolyline, DxfLayer layer, 
+            Matrix4 affine, Matrix4 scale)
         {
+            var pdfStreamState = new PdfStreamState(
+                strokeColor: GetPdfColor(lwPolyline, layer),
+                strokeWidth: GetStrokeWidth(lwPolyline, layer));
             IList<DxfLwPolylineVertex> vertices = lwPolyline.Vertices;
             int n = vertices.Count;
             DxfLwPolylineVertex vertex = vertices[0];
@@ -248,7 +309,8 @@ namespace IxMilia.Converters
         #endregion
 
         #region Color and Stroke Width Conversion
-
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static PdfColor GetPdfColor(DxfEntity entity, DxfLayer layer)
         {
             int rgb = entity.Color24Bit;
@@ -265,7 +327,8 @@ namespace IxMilia.Converters
             // default to black, probably not correct.
             return new PdfColor(0, 0, 0);
         }
-
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static PdfColor ToPdfColor(int rgb)
         {
             byte r = (byte)(rgb >> 16);
@@ -282,7 +345,8 @@ namespace IxMilia.Converters
             }
             return new PdfColor(r / 255.0, g / 255.0, b / 255.0);
         }
-
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static DxfColor GetFinalDxfColor(DxfEntity entity, DxfLayer layer)
         {
             DxfColor c = entity.Color;
@@ -299,8 +363,10 @@ namespace IxMilia.Converters
             return null;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static PdfMeasurement GetStrokeWidth(DxfEntity entity, DxfLayer layer)
         {
+            // TODO many entities have a Thickness property (which is often zero).
             DxfLineWeight lw = new DxfLineWeight {Value = entity.LineweightEnumValue};
             DxfLineWeightType type = lw.LineWeightType;
             if (type == DxfLineWeightType.ByLayer)
@@ -315,8 +381,9 @@ namespace IxMilia.Converters
             {
                 return PdfMeasurement.Points(1); // smallest valid stroke width
             }
-            // TODO What is the meaning of this short? Some default app-dependent table?
-            return PdfMeasurement.Points(lw.Value);
+            // TODO What is the meaning of this short? Some default app-dependent table? DXF spec doesn't tell.
+            // QCad 1mm => lw.Value==100
+            return PdfMeasurement.Mm(lw.Value / 100.0);
         }
 
         #endregion
