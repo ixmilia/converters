@@ -15,7 +15,7 @@ jobs:
         submodules: true
     - uses: actions/setup-dotnet@v1.0.2
       with:
-        dotnet-version: '3.0.100'
+        dotnet-version: '3.1.100'
     - name: Build and test
       run: ./build-and-test.sh --configuration ${{ matrix.configuration }}
 
@@ -30,6 +30,6 @@ jobs:
         submodules: true
     - uses: actions/setup-dotnet@v1.0.2
       with:
-        dotnet-version: '3.0.100'
+        dotnet-version: '3.1.100'
     - name: Build and test
       run: .\build-and-test.cmd -c ${{ matrix.configuration }}
