@@ -13,7 +13,7 @@ namespace IxMilia.Converters
         public PdfMeasurement PageWidth { get; }
         public PdfMeasurement PageHeight { get; }
         public double Scale { get; }
-        public ConverterDxfRect DxfSource { get; }
+        public ConverterDxfRect? DxfSource { get; }
         public ConverterPdfRect PdfDestination { get; }
 
         public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, double scale)
@@ -25,7 +25,7 @@ namespace IxMilia.Converters
             this.PdfDestination = null;
         }
 
-        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDxfRect dxfSource, ConverterPdfRect pdfDestination)
+        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDxfRect? dxfSource, ConverterPdfRect pdfDestination)
         {
             PageWidth = pageWidth;
             PageHeight = pageHeight;
@@ -95,12 +95,13 @@ namespace IxMilia.Converters
             if (options.DxfSource != null && options.PdfDestination != null)
             {
                 // user supplied source and destination rectangles, no trouble with units
+                var dxfSource = options.DxfSource.GetValueOrDefault();
                 double pdfOffsetX = options.PdfDestination.Left.AsPoints();
                 double pdfOffsetY = options.PdfDestination.Bottom.AsPoints();
-                double scaleX = options.PdfDestination.Width.AsPoints() / options.DxfSource.Width;
-                double scaleY = options.PdfDestination.Height.AsPoints() / options.DxfSource.Height;
-                double dxfOffsetX = options.DxfSource.Left;
-                double dxfOffsetY = options.DxfSource.Bottom;
+                double scaleX = options.PdfDestination.Width.AsPoints() / dxfSource.Width;
+                double scaleY = options.PdfDestination.Height.AsPoints() / dxfSource.Height;
+                double dxfOffsetX = dxfSource.Left;
+                double dxfOffsetY = dxfSource.Bottom;
                 scale = Matrix4.CreateScale(scaleX, scaleY, 0.0);
                 affine = Matrix4.CreateTranslate(+pdfOffsetX, +pdfOffsetY, 0.0)
                     * scale

@@ -3,7 +3,7 @@ using IxMilia.Dxf;
 
 namespace IxMilia.Converters
 {
-    public class ConverterDxfRect
+    public struct ConverterDxfRect
     {
         public double Left { get; }
         public double Right { get; }
