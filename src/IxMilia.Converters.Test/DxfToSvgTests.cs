@@ -43,5 +43,37 @@ namespace IxMilia.Converters.Test
             var actual = line.ToXElement();
             AssertXElement(expected, actual);
         }
+
+        [Fact]
+        public void EnsureValidShapeAsBareSvg()
+        {
+            var element = new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect()));
+            Assert.Equal("svg", element.Name.LocalName);
+        }
+
+        [Fact]
+        public void EnsureValidShapeAsDiv()
+        {
+            var element = new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect(), svgId: "test-id"));
+            Assert.Equal("div", element.Name.LocalName);
+            var children = element.Elements().ToList();
+            Assert.Equal(3, children.Count);
+
+            var svg = children[0];
+            Assert.Equal("svg", svg.Name.LocalName);
+            Assert.Equal("test-id", svg.Attribute("id").Value);
+            var svgGroups = svg.Elements().ToList();
+            Assert.Equal(2, svgGroups.Count);
+            Assert.Equal("svg-viewport", svgGroups[0].Attribute("class").Value);
+
+            var css = children[1];
+            Assert.Equal("style", css.Name.LocalName);
+
+            var script = children[2];
+            Assert.Equal("script", script.Name.LocalName);
+            Assert.Equal("text/javascript", script.Attribute("type").Value);
+            Assert.Contains("function", script.Value);
+            Assert.DoesNotContain("&gt;", script.Value);
+        }
     }
 }

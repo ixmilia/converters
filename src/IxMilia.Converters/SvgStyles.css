@@ -1,0 +1,17 @@
+﻿.svg-button {
+    width: $BUTTON-SIZE$px;
+    height: $BUTTON-SIZE$px;
+    stroke: black;
+    fill: white;
+}
+
+.svg-button-overlay {
+    width: $BUTTON-SIZE$px;
+    height: $BUTTON-SIZE$px;
+    stroke: black;
+    fill: transparent;
+}
+
+.svg-button-text {
+
+}
