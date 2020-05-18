@@ -207,6 +207,8 @@ namespace IxMilia.Converters
             // elements are simply flattened in the z plane; the world transform in the main function handles the rest
             switch (entity)
             {
+                case DxfArc arc:
+                    return arc.ToXElement();
                 case DxfCircle circle:
                     return circle.ToXElement();
                 case DxfLine line:
@@ -214,6 +216,37 @@ namespace IxMilia.Converters
                 default:
                     return null;
             }
+        }
+
+        public static XElement ToXElement(this DxfArc arc)
+        {
+            // large arc and counterclockwise computations all rely on the end angle being greater than the start
+            var endAngle = arc.EndAngle;
+            while (endAngle < arc.StartAngle)
+            {
+                endAngle += 360.0;
+            }
+
+            var startPoint = arc.GetPointFromAngle(arc.StartAngle);
+            var endPoint = arc.GetPointFromAngle(endAngle);
+            var isLargeArc = (endAngle - arc.StartAngle) > 180.0;
+            var isCounterClockwise = endAngle > arc.StartAngle;
+            var pathData = string.Format("M {0} {1} a {2} {3} {4} {5} {6} {7} {8}",
+                startPoint.X,
+                startPoint.Y,
+                arc.Radius,
+                arc.Radius,
+                0, // x axis rotation
+                isLargeArc ? 1 : 0, // large arc flag
+                isCounterClockwise ? 1 : 0, // sweep flag
+                endPoint.X - startPoint.X,
+                endPoint.Y - startPoint.Y);
+            return new XElement(DxfToSvgConverter.Xmlns + "path",
+                new XAttribute("d", pathData),
+                new XAttribute("fill-opacity", 0))
+                .AddStroke(arc.Color)
+                .AddStrokeWidth(arc.Thickness)
+                .AddVectorEffect();
         }
 
         public static XElement ToXElement(this DxfCircle circle)

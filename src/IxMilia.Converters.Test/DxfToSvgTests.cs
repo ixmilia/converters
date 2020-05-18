@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Xml.Linq;
 using IxMilia.Dxf;
 using IxMilia.Dxf.Entities;
@@ -31,6 +32,41 @@ namespace IxMilia.Converters.Test
                     AssertXElement(expectedChild, actualChild);
                 }
             }
+        }
+
+        [Fact]
+        public void RenderArcTest()
+        {
+            var arc = new DxfArc(new DxfPoint(1.0, 2.0, 3.0), 4.0, 0.0, 90.0);
+            var expected = new XElement("path",
+                new XAttribute("d", "M 5 2 a 4 4 0 0 1 -4 4"),
+                new XAttribute("fill-opacity", "0"),
+                new XAttribute("stroke-width", "1.0px"),
+                new XAttribute("vector-effect", "non-scaling-stroke"));
+            var actual = arc.ToXElement();
+            AssertXElement(expected, actual);
+        }
+
+        [Fact]
+        public void ArcFlagsSizeTest1()
+        {
+            // arc from 270->0 (360)
+            var arc = new DxfArc(new DxfPoint(1.0, 2.0, 3.0), 4.0, 270.0, 0.0);
+            var element = arc.ToXElement();
+            var arcParts = element.Attribute("d").Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            Assert.Equal("0", arcParts[7]); // not large arc
+            Assert.Equal("1", arcParts[8]); // counterclockwise sweep
+        }
+
+        [Fact]
+        public void ArcFlagsSizeTest2()
+        {
+            // arc from 350->10
+            var arc = new DxfArc(new DxfPoint(1.0, 2.0, 3.0), 4.0, 350.0, 10.0);
+            var element = arc.ToXElement();
+            var arcParts = element.Attribute("d").Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            Assert.Equal("0", arcParts[7]); // not large arc
+            Assert.Equal("1", arcParts[8]); // counterclockwise sweep
         }
 
         [Fact]
