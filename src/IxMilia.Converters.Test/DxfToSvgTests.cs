@@ -39,7 +39,7 @@ namespace IxMilia.Converters.Test
         {
             var arc = new DxfArc(new DxfPoint(1.0, 2.0, 3.0), 4.0, 0.0, 90.0);
             var expected = new XElement("path",
-                new XAttribute("d", "M 5 2 a 4 4 0 0 1 -4 4"),
+                new XAttribute("d", "M 5.0 2.0 a 4.0 4.0 0 0 1 -4.0 4.0"),
                 new XAttribute("fill-opacity", "0"),
                 new XAttribute("stroke-width", "1.0px"),
                 new XAttribute("vector-effect", "non-scaling-stroke"));

@@ -232,15 +232,15 @@ namespace IxMilia.Converters
             var isLargeArc = (endAngle - arc.StartAngle) > 180.0;
             var isCounterClockwise = endAngle > arc.StartAngle;
             var pathData = string.Format("M {0} {1} a {2} {3} {4} {5} {6} {7} {8}",
-                startPoint.X,
-                startPoint.Y,
-                arc.Radius,
-                arc.Radius,
+                startPoint.X.ToDisplayString(),
+                startPoint.Y.ToDisplayString(),
+                arc.Radius.ToDisplayString(),
+                arc.Radius.ToDisplayString(),
                 0, // x axis rotation
                 isLargeArc ? 1 : 0, // large arc flag
                 isCounterClockwise ? 1 : 0, // sweep flag
-                endPoint.X - startPoint.X,
-                endPoint.Y - startPoint.Y);
+                (endPoint.X - startPoint.X).ToDisplayString(),
+                (endPoint.Y - startPoint.Y).ToDisplayString());
             return new XElement(DxfToSvgConverter.Xmlns + "path",
                 new XAttribute("d", pathData),
                 new XAttribute("fill-opacity", 0))
