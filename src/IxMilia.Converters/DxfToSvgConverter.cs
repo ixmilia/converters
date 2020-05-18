@@ -207,11 +207,26 @@ namespace IxMilia.Converters
             // elements are simply flattened in the z plane; the world transform in the main function handles the rest
             switch (entity)
             {
+                case DxfCircle circle:
+                    return circle.ToXElement();
                 case DxfLine line:
                     return line.ToXElement();
                 default:
                     return null;
             }
+        }
+
+        public static XElement ToXElement(this DxfCircle circle)
+        {
+            return new XElement(DxfToSvgConverter.Xmlns + "ellipse",
+                new XAttribute("cx", circle.Center.X.ToDisplayString()),
+                new XAttribute("cy", circle.Center.Y.ToDisplayString()),
+                new XAttribute("rx", circle.Radius.ToDisplayString()),
+                new XAttribute("ry", circle.Radius.ToDisplayString()),
+                new XAttribute("fill-opacity", 0))
+                .AddStroke(circle.Color)
+                .AddStrokeWidth(circle.Thickness)
+                .AddVectorEffect();
         }
 
         public static XElement ToXElement(this DxfLine line)

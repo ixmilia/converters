@@ -34,6 +34,20 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
+        public void RenderCircleTest()
+        {
+            var circle = new DxfCircle(new DxfPoint(1.0, 2.0, 3.0), 4.0);
+            var expected = new XElement("ellipse",
+                new XAttribute("cx", "1.0"), new XAttribute("cy", "2.0"),
+                new XAttribute("rx", "4.0"), new XAttribute("ry", "4.0"),
+                new XAttribute("fill-opacity", "0"),
+                new XAttribute("stroke-width", "1.0px"),
+                new XAttribute("vector-effect", "non-scaling-stroke"));
+            var actual = circle.ToXElement();
+            AssertXElement(expected, actual);
+        }
+
+        [Fact]
         public void RenderLineTest()
         {
             var line = new DxfLine(new DxfPoint(1.0, 2.0, 3.0), new DxfPoint(4.0, 5.0, 6.0));
