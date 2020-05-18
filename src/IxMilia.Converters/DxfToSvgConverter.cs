@@ -222,7 +222,8 @@ namespace IxMilia.Converters
                 new XAttribute("x2", line.P2.X.ToDisplayString()),
                 new XAttribute("y2", line.P2.Y.ToDisplayString()))
                 .AddStroke(line.Color)
-                .AddStrokeWidth(line.Thickness);
+                .AddStrokeWidth(line.Thickness)
+                .AddVectorEffect();
         }
 
         private static XElement AddStroke(this XElement element, DxfColor color)
@@ -247,6 +248,12 @@ namespace IxMilia.Converters
         private static XElement AddStrokeWidth(this XElement element, double strokeWidth)
         {
             element.Add(new XAttribute("stroke-width", $"{Math.Max(strokeWidth, 1.0).ToDisplayString()}px"));
+            return element;
+        }
+
+        private static XElement AddVectorEffect(this XElement element)
+        {
+            element.Add(new XAttribute("vector-effect", "non-scaling-stroke"));
             return element;
         }
     }

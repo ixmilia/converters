@@ -39,7 +39,8 @@ namespace IxMilia.Converters.Test
             var line = new DxfLine(new DxfPoint(1.0, 2.0, 3.0), new DxfPoint(4.0, 5.0, 6.0));
             var expected = new XElement("line",
                 new XAttribute("x1", "1.0"), new XAttribute("y1", "2.0"), new XAttribute("x2", "4.0"), new XAttribute("y2", "5.0"),
-                new XAttribute("stroke-width", "1.0px"));
+                new XAttribute("stroke-width", "1.0px"),
+                new XAttribute("vector-effect", "non-scaling-stroke"));
             var actual = line.ToXElement();
             AssertXElement(expected, actual);
         }
