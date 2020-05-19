@@ -246,10 +246,25 @@ namespace IxMilia.Converters
 
         public static XElement ToXElement(this DxfEllipse ellipse)
         {
-            var arcTo = ellipse.GetArcPath();
-            return new XElement(DxfToSvgConverter.Xmlns + "path",
-                new XAttribute("d", arcTo.ToString()),
-                new XAttribute("fill-opacity", 0)).AddStroke(ellipse.Color)
+            XElement baseShape;
+            if (IsCloseTo(ellipse.StartParameter, 0.0) && IsCloseTo(ellipse.EndParameter, Math.PI * 2.0))
+            {
+                baseShape = new XElement(DxfToSvgConverter.Xmlns + "ellipse",
+                    new XAttribute("cx", ellipse.Center.X.ToDisplayString()),
+                    new XAttribute("cy", ellipse.Center.Y.ToDisplayString()),
+                    new XAttribute("rx", ellipse.MajorAxis.Length.ToDisplayString()),
+                    new XAttribute("ry", ellipse.MinorAxis().Length.ToDisplayString()));
+            }
+            else
+            {
+                var arcTo = ellipse.GetArcPath();
+                baseShape = new XElement(DxfToSvgConverter.Xmlns + "path",
+                    new XAttribute("d", arcTo.ToString()));
+            }
+
+            baseShape.Add(new XAttribute("fill-opacity", 0));
+            return baseShape
+                .AddStroke(ellipse.Color)
                 .AddStrokeWidth(1.0)
                 .AddVectorEffect();
         }
@@ -307,6 +322,11 @@ namespace IxMilia.Converters
         {
             element.Add(new XAttribute("vector-effect", "non-scaling-stroke"));
             return element;
+        }
+
+        private static bool IsCloseTo(double a, double b)
+        {
+            return Math.Abs(a - b) < 1.0e-10;
         }
     }
 

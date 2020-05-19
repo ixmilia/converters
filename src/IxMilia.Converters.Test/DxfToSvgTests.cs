@@ -183,6 +183,20 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
+        public void EllipseAndClosedShapeTest()
+        {
+            var ellipse = new DxfEllipse(new DxfPoint(0.0, 0.0, 0.0), new DxfVector(1.0, 0.0, 0.0), 0.5);
+            var expected = new XElement("ellipse",
+                new XAttribute("cx", "0.0"), new XAttribute("cy", "0.0"),
+                new XAttribute("rx", "1.0"), new XAttribute("ry", "0.5"),
+                new XAttribute("fill-opacity", "0"),
+                new XAttribute("stroke-width", "1.0px"),
+                new XAttribute("vector-effect", "non-scaling-stroke"));
+            var actual = ellipse.ToXElement();
+            AssertXElement(expected, actual);
+        }
+
+        [Fact]
         public void RenderLineTest()
         {
             var line = new DxfLine(new DxfPoint(1.0, 2.0, 3.0), new DxfPoint(4.0, 5.0, 6.0));
