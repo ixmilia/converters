@@ -223,9 +223,8 @@ namespace IxMilia.Converters
         public static XElement ToXElement(this DxfArc arc)
         {
             var arcTo = arc.GetArcPath();
-            var startPoint = arc.GetPointFromAngle(arc.StartAngle);
             return new XElement(DxfToSvgConverter.Xmlns + "path",
-                new XAttribute("d", arcTo.ToPath()),
+                new XAttribute("d", arcTo.ToString()),
                 new XAttribute("fill-opacity", 0))
                 .AddStroke(arc.Color)
                 .AddStrokeWidth(arc.Thickness)
@@ -248,9 +247,8 @@ namespace IxMilia.Converters
         public static XElement ToXElement(this DxfEllipse ellipse)
         {
             var arcTo = ellipse.GetArcPath();
-            var startPoint = ellipse.GetPointFromAngle(ellipse.StartParameter);
             return new XElement(DxfToSvgConverter.Xmlns + "path",
-                new XAttribute("d", arcTo.ToPath()),
+                new XAttribute("d", arcTo.ToString()),
                 new XAttribute("fill-opacity", 0)).AddStroke(ellipse.Color)
                 .AddStrokeWidth(1.0)
                 .AddVectorEffect();
@@ -270,37 +268,14 @@ namespace IxMilia.Converters
 
         internal static SvgArcPath GetArcPath(this DxfArc arc)
         {
-            // large arc and counterclockwise computations all rely on the end angle being greater than the start
-            var endAngle = arc.EndAngle;
-            while (endAngle < arc.StartAngle)
-            {
-                endAngle += 360.0;
-            }
-
-            var startPoint = arc.GetPointFromAngle(arc.StartAngle);
-            var endPoint = arc.GetPointFromAngle(endAngle);
-            var isLargeArc = (endAngle - arc.StartAngle) > 180.0;
-            var isCounterClockwise = endAngle > arc.StartAngle;
-            return new SvgArcPath(startPoint.X, startPoint.Y, endPoint.X, endPoint.Y, arc.Radius, arc.Radius, 0.0, isLargeArc, isCounterClockwise);
+            var startAngle = arc.StartAngle * Math.PI / 180.0;
+            var endAngle = arc.EndAngle * Math.PI / 180.0;
+            return SvgArcPath.FromEllipse(arc.Center.X, arc.Center.Y, arc.Radius, 0.0, 1.0, startAngle, endAngle);
         }
 
         internal static SvgArcPath GetArcPath(this DxfEllipse ellipse)
         {
-            // large arc and counterclockwise computations all rely on the end angle being greater than the start
-            var endParameter = ellipse.EndParameter;
-            while (endParameter < ellipse.StartParameter)
-            {
-                endParameter += Math.PI * 2.0;
-            }
-
-            var startPoint = ellipse.GetPointFromAngle(ellipse.StartParameter);
-            var endPoint = ellipse.GetPointFromAngle(endParameter);
-            var isLargeArc = (endParameter - ellipse.StartParameter) > Math.PI;
-            var isCounterClockwise = endParameter > ellipse.StartParameter;
-            var majorAxisLength = ellipse.MajorAxis.Length;
-            var minorAxisLength = majorAxisLength * ellipse.MinorAxisRatio;
-            var majorAxisAngle = Math.Atan2(ellipse.MajorAxis.Y, ellipse.MajorAxis.X);
-            return new SvgArcPath(startPoint.X, startPoint.Y, endPoint.X, endPoint.Y, majorAxisLength, minorAxisLength, majorAxisAngle, isLargeArc, isCounterClockwise);
+            return SvgArcPath.FromEllipse(ellipse.Center.X, ellipse.Center.Y, ellipse.MajorAxis.X, ellipse.MajorAxis.Y, ellipse.MinorAxisRatio, ellipse.StartParameter, ellipse.EndParameter);
         }
 
         private static XElement AddStroke(this XElement element, DxfColor color)
@@ -339,34 +314,99 @@ namespace IxMilia.Converters
     {
         public double StartPointX { get; }
         public double StartPointY { get; }
-        public double EndPointX{ get; }
-        public double EndPointY { get; }
-        public double RadiusX { get; }
-        public double RadiusY { get; }
-        public double XAxisRotation { get; }
-        public bool IsLargeArc { get; }
-        public bool IsCounterClockwiseSweep { get; }
+        public List<SvgArcToPath> Arcs { get; }
 
-        public SvgArcPath(double startPointX, double startPointY, double endPointX, double endPointY, double radiusX, double radiusY, double xAxisRotation, bool isLargeArc, bool isCounterClockwiseSweep)
+        public SvgArcPath(double startPointX, double startPointY, IEnumerable<SvgArcToPath> arcs)
         {
             StartPointX = startPointX;
             StartPointY = startPointY;
-            EndPointX = endPointX;
-            EndPointY = endPointY;
-            RadiusX = radiusX;
-            RadiusY = radiusY;
-            XAxisRotation = xAxisRotation;
-            IsLargeArc = isLargeArc;
-            IsCounterClockwiseSweep = isCounterClockwiseSweep;
+            Arcs = arcs.ToList();
         }
 
-        public string ToPath()
+        public override string ToString()
         {
             return string.Join(" ", new object[]
             {
                 "M", // move absolute
                 StartPointX.ToDisplayString(),
                 StartPointY.ToDisplayString(),
+                string.Join(" ", Arcs)
+            });
+        }
+
+        public static SvgArcPath FromEllipse(double centerX, double centerY, double majorAxisX, double majorAxisY, double minorAxisRatio, double startAngle, double endAngle)
+        {
+            // large arc and counterclockwise computations all rely on the end angle being greater than the start
+            while (endAngle < startAngle)
+            {
+                endAngle += Math.PI * 2.0;
+            }
+
+            var axisAngle = Math.Atan2(majorAxisY, majorAxisY);
+            var majorAxisLength = Math.Sqrt(majorAxisX * majorAxisX + majorAxisY * majorAxisY);
+            var minorAxisLength = majorAxisLength * minorAxisRatio;
+
+            var startSin = Math.Sin(startAngle);
+            var startCos = Math.Cos(startAngle);
+            var startX = centerX + startCos * majorAxisLength;
+            var startY = centerY + startSin * minorAxisLength;
+
+            var endSin = Math.Sin(endAngle);
+            var endCos = Math.Cos(endAngle);
+            var endX = centerX + endCos * majorAxisLength;
+            var endY = centerY + endSin * minorAxisLength;
+
+            var enclosedAngle = endAngle - startAngle;
+            var isLargeArc = (endAngle - startAngle) > Math.PI;
+            var isCounterClockwise = endAngle > startAngle;
+
+            var arcs = new List<SvgArcToPath>();
+            if (Math.Abs(Math.PI - enclosedAngle) <= 1.0)
+            {
+                // really close to a semicircle; split into to half arcs to avoid rendering artifacts
+                var midAngle = (startAngle + endAngle) / 2.0;
+                var midSin = Math.Sin(midAngle);
+                var midCos = Math.Cos(midAngle);
+                var midX = centerX + midCos * majorAxisLength;
+                var midY = centerY + midSin * minorAxisLength;
+                arcs.Add(new SvgArcToPath(majorAxisLength, minorAxisLength, axisAngle, false, isCounterClockwise, midX, midY));
+                arcs.Add(new SvgArcToPath(majorAxisLength, minorAxisLength, axisAngle, isLargeArc, isCounterClockwise, endX, endY));
+            }
+            else
+            {
+                // can be contained by just one arc
+                arcs.Add(new SvgArcToPath(majorAxisLength, minorAxisLength, axisAngle, isLargeArc, isCounterClockwise, endX, endY));
+            }
+
+            return new SvgArcPath(startX, startY, arcs);
+        }
+    }
+
+    internal struct SvgArcToPath
+    {
+        public double RadiusX { get; }
+        public double RadiusY { get; }
+        public double XAxisRotation { get; }
+        public bool IsLargeArc { get; }
+        public bool IsCounterClockwiseSweep { get; }
+        public double EndPointX { get; }
+        public double EndPointY { get; }
+
+        public SvgArcToPath(double radiusX, double radiusY, double xAxisRotation, bool isLargeArc, bool isCounterClockwiseSweep, double endPointX, double endPointY)
+        {
+            RadiusX = radiusX;
+            RadiusY = radiusY;
+            XAxisRotation = xAxisRotation;
+            IsLargeArc = isLargeArc;
+            IsCounterClockwiseSweep = isCounterClockwiseSweep;
+            EndPointX = endPointX;
+            EndPointY = endPointY;
+        }
+
+        public override string ToString()
+        {
+            return string.Join(" ", new object[]
+            {
                 "A", // arc absolute
                 RadiusX.ToDisplayString(),
                 RadiusY.ToDisplayString(),

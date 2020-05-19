@@ -39,18 +39,19 @@ namespace IxMilia.Converters.Test
         {
             var arc = new DxfArc(new DxfPoint(1.0, 2.0, 3.0), 4.0, 0.0, 90.0);
             var arcPath = arc.GetArcPath();
-            Assert.Equal(5.0, arcPath.StartPointX);
-            Assert.Equal(2.0, arcPath.StartPointY);
-            AssertClose(1.0, arcPath.EndPointX);
-            AssertClose(6.0, arcPath.EndPointY);
-            Assert.Equal(4.0, arcPath.RadiusX);
-            Assert.Equal(4.0, arcPath.RadiusY);
-            Assert.Equal(0.0, arcPath.XAxisRotation);
-            Assert.False(arcPath.IsLargeArc);
-            Assert.True(arcPath.IsCounterClockwiseSweep);
+            AssertClose(5.0, arcPath.StartPointX);
+            AssertClose(2.0, arcPath.StartPointY);
+            var arcPathSegment = arcPath.Arcs.Single();
+            AssertClose(1.0, arcPathSegment.EndPointX);
+            AssertClose(6.0, arcPathSegment.EndPointY);
+            Assert.Equal(4.0, arcPathSegment.RadiusX);
+            Assert.Equal(4.0, arcPathSegment.RadiusY);
+            Assert.Equal(0.0, arcPathSegment.XAxisRotation);
+            Assert.False(arcPathSegment.IsLargeArc);
+            Assert.True(arcPathSegment.IsCounterClockwiseSweep);
 
             var expected = new XElement("path",
-                new XAttribute("d", arcPath.ToPath()),
+                new XAttribute("d", arcPath.ToString()),
                 new XAttribute("fill-opacity", "0"),
                 new XAttribute("stroke-width", "1.0px"),
                 new XAttribute("vector-effect", "non-scaling-stroke"));
@@ -59,13 +60,41 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
+        public void ArcPathOf180DegreesTest()
+        {
+            var arc = new DxfArc(new DxfPoint(0.0, 0.0, 0.0), 1.0, 0.0, 180.0);
+            var arcPath = arc.GetArcPath();
+
+            // 180 degree arcs are difficult to render; split it into two 90s
+            AssertClose(1.0, arcPath.StartPointX);
+            AssertClose(0.0, arcPath.StartPointY);
+            Assert.Equal(2, arcPath.Arcs.Count);
+            var first = arcPath.Arcs[0];
+            AssertClose(0.0, first.EndPointX);
+            AssertClose(1.0, first.EndPointY);
+            Assert.Equal(1.0, first.RadiusX);
+            Assert.Equal(1.0, first.RadiusY);
+            Assert.Equal(0.0, first.XAxisRotation);
+            Assert.False(first.IsLargeArc);
+            Assert.True(first.IsCounterClockwiseSweep);
+            var second = arcPath.Arcs[1];
+            AssertClose(-1.0, second.EndPointX);
+            AssertClose(0.0, second.EndPointY);
+            Assert.Equal(1.0, second.RadiusX);
+            Assert.Equal(1.0, second.RadiusY);
+            Assert.Equal(0.0, second.XAxisRotation);
+            Assert.False(second.IsLargeArc);
+            Assert.True(second.IsCounterClockwiseSweep);
+        }
+
+        [Fact]
         public void ArcFlagsSizeTest1()
         {
             // arc from 270->0 (360)
             var arc = new DxfArc(new DxfPoint(1.0, 2.0, 3.0), 4.0, 270.0, 0.0);
-            var arcTo = arc.GetArcPath();
-            Assert.False(arcTo.IsLargeArc);
-            Assert.True(arcTo.IsCounterClockwiseSweep);
+            var arcPath = arc.GetArcPath().Arcs.Single();
+            Assert.False(arcPath.IsLargeArc);
+            Assert.True(arcPath.IsCounterClockwiseSweep);
         }
 
         [Fact]
@@ -73,9 +102,9 @@ namespace IxMilia.Converters.Test
         {
             // arc from 350->10
             var arc = new DxfArc(new DxfPoint(1.0, 2.0, 3.0), 4.0, 350.0, 10.0);
-            var arcTo = arc.GetArcPath();
-            Assert.False(arcTo.IsLargeArc);
-            Assert.True(arcTo.IsCounterClockwiseSweep);
+            var arcPath = arc.GetArcPath().Arcs.Single();
+            Assert.False(arcPath.IsLargeArc);
+            Assert.True(arcPath.IsCounterClockwiseSweep);
         }
 
         [Fact]
@@ -101,23 +130,56 @@ namespace IxMilia.Converters.Test
                 EndParameter = Math.PI / 2.0 // 90 degrees
             };
             var arcPath = ellipse.GetArcPath();
-            Assert.Equal(2.0, arcPath.StartPointX);
-            Assert.Equal(2.0, arcPath.StartPointY);
-            AssertClose(1.0, arcPath.EndPointX);
-            AssertClose(2.5, arcPath.EndPointY);
-            Assert.Equal(1.0, arcPath.RadiusX);
-            Assert.Equal(0.5, arcPath.RadiusY);
-            Assert.Equal(0.0, arcPath.XAxisRotation);
-            Assert.False(arcPath.IsLargeArc);
-            Assert.True(arcPath.IsCounterClockwiseSweep);
+            AssertClose(2.0, arcPath.StartPointX);
+            AssertClose(2.0, arcPath.StartPointY);
+            var arcSegment = arcPath.Arcs.Single();
+            AssertClose(1.0, arcSegment.EndPointX);
+            AssertClose(2.5, arcSegment.EndPointY);
+            Assert.Equal(1.0, arcSegment.RadiusX);
+            Assert.Equal(0.5, arcSegment.RadiusY);
+            Assert.Equal(0.0, arcSegment.XAxisRotation);
+            Assert.False(arcSegment.IsLargeArc);
+            Assert.True(arcSegment.IsCounterClockwiseSweep);
 
             var expected = new XElement("path",
-                new XAttribute("d", arcPath.ToPath()),
+                new XAttribute("d", arcPath.ToString()),
                 new XAttribute("fill-opacity", "0"),
                 new XAttribute("stroke-width", "1.0px"),
                 new XAttribute("vector-effect", "non-scaling-stroke"));
             var actual = ellipse.ToXElement();
             AssertXElement(expected, actual);
+        }
+
+        [Fact]
+        public void EllipsePathOf180DegreesTest()
+        {
+            var ellipse = new DxfEllipse(new DxfPoint(0.0, 0.0, 0.0), new DxfVector(1.0, 0.0, 0.0), 0.5)
+            {
+                StartParameter = 0.0,
+                EndParameter = Math.PI
+            };
+            var arcPath = ellipse.GetArcPath();
+
+            // 180 degree ellipses are difficult to render; split it into two 90s
+            AssertClose(1.0, arcPath.StartPointX);
+            AssertClose(0.0, arcPath.StartPointY);
+            Assert.Equal(2, arcPath.Arcs.Count);
+            var first = arcPath.Arcs[0];
+            AssertClose(0.0, first.EndPointX);
+            AssertClose(0.5, first.EndPointY);
+            Assert.Equal(1.0, first.RadiusX);
+            Assert.Equal(0.5, first.RadiusY);
+            Assert.Equal(0.0, first.XAxisRotation);
+            Assert.False(first.IsLargeArc);
+            Assert.True(first.IsCounterClockwiseSweep);
+            var second = arcPath.Arcs[1];
+            AssertClose(-1.0, second.EndPointX);
+            AssertClose(0.0, second.EndPointY);
+            Assert.Equal(1.0, second.RadiusX);
+            Assert.Equal(0.5, second.RadiusY);
+            Assert.Equal(0.0, second.XAxisRotation);
+            Assert.False(second.IsLargeArc);
+            Assert.True(second.IsCounterClockwiseSweep);
         }
 
         [Fact]
@@ -135,8 +197,11 @@ namespace IxMilia.Converters.Test
         [Fact]
         public void SvgArcPathToStringTest()
         {
-            var arcPath = new SvgArcPath(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, true, false);
-            Assert.Equal("M 1.0 2.0 A 5.0 6.0 7.0 1 0 3.0 4.0", arcPath.ToPath());
+            var arcPath = new SvgArcPath(1.0, 2.0, new[] { new SvgArcToPath(3.0, 4.0, 5.0, true, false, 6.0, 7.0) });
+            Assert.Equal("M 1.0 2.0 A 3.0 4.0 5.0 1 0 6.0 7.0", arcPath.ToString());
+
+            arcPath = new SvgArcPath(1.0, 2.0, new[] { new SvgArcToPath(3.0, 4.0, 5.0, true, false, 6.0, 7.0), new SvgArcToPath(8.0, 9.0, 10.0, false, true, 11.0, 12.0) });
+            Assert.Equal("M 1.0 2.0 A 3.0 4.0 5.0 1 0 6.0 7.0 A 8.0 9.0 10.0 0 1 11.0 12.0", arcPath.ToString());
         }
 
         [Fact]
