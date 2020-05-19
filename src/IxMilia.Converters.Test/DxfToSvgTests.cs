@@ -7,7 +7,7 @@ using Xunit;
 
 namespace IxMilia.Converters.Test
 {
-    public class DxfToSvgTests : TestBase<DxfFile, XElement>
+    public class DxfToSvgTests : TestBase
     {
         private static void AssertXElement(XElement expected, XElement actual)
         {
@@ -38,8 +38,19 @@ namespace IxMilia.Converters.Test
         public void RenderArcTest()
         {
             var arc = new DxfArc(new DxfPoint(1.0, 2.0, 3.0), 4.0, 0.0, 90.0);
+            var arcPath = arc.GetArcPath();
+            Assert.Equal(5.0, arcPath.StartPointX);
+            Assert.Equal(2.0, arcPath.StartPointY);
+            AssertClose(1.0, arcPath.EndPointX);
+            AssertClose(6.0, arcPath.EndPointY);
+            Assert.Equal(4.0, arcPath.RadiusX);
+            Assert.Equal(4.0, arcPath.RadiusY);
+            Assert.Equal(0.0, arcPath.XAxisRotation);
+            Assert.False(arcPath.IsLargeArc);
+            Assert.True(arcPath.IsCounterClockwiseSweep);
+
             var expected = new XElement("path",
-                new XAttribute("d", "M 5.0 2.0 a 4.0 4.0 0 0 1 -4.0 4.0"),
+                new XAttribute("d", arcPath.ToPath()),
                 new XAttribute("fill-opacity", "0"),
                 new XAttribute("stroke-width", "1.0px"),
                 new XAttribute("vector-effect", "non-scaling-stroke"));
@@ -52,10 +63,9 @@ namespace IxMilia.Converters.Test
         {
             // arc from 270->0 (360)
             var arc = new DxfArc(new DxfPoint(1.0, 2.0, 3.0), 4.0, 270.0, 0.0);
-            var element = arc.ToXElement();
-            var arcParts = element.Attribute("d").Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            Assert.Equal("0", arcParts[7]); // not large arc
-            Assert.Equal("1", arcParts[8]); // counterclockwise sweep
+            var arcTo = arc.GetArcPath();
+            Assert.False(arcTo.IsLargeArc);
+            Assert.True(arcTo.IsCounterClockwiseSweep);
         }
 
         [Fact]
@@ -63,10 +73,9 @@ namespace IxMilia.Converters.Test
         {
             // arc from 350->10
             var arc = new DxfArc(new DxfPoint(1.0, 2.0, 3.0), 4.0, 350.0, 10.0);
-            var element = arc.ToXElement();
-            var arcParts = element.Attribute("d").Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            Assert.Equal("0", arcParts[7]); // not large arc
-            Assert.Equal("1", arcParts[8]); // counterclockwise sweep
+            var arcTo = arc.GetArcPath();
+            Assert.False(arcTo.IsLargeArc);
+            Assert.True(arcTo.IsCounterClockwiseSweep);
         }
 
         [Fact]
@@ -84,6 +93,34 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
+        public void RenderEllipseTest()
+        {
+            var ellipse = new DxfEllipse(new DxfPoint(1.0, 2.0, 3.0), new DxfVector(1.0, 0.0, 0.0), 0.5)
+            {
+                StartParameter = 0.0,
+                EndParameter = Math.PI / 2.0 // 90 degrees
+            };
+            var arcPath = ellipse.GetArcPath();
+            Assert.Equal(2.0, arcPath.StartPointX);
+            Assert.Equal(2.0, arcPath.StartPointY);
+            AssertClose(1.0, arcPath.EndPointX);
+            AssertClose(2.5, arcPath.EndPointY);
+            Assert.Equal(1.0, arcPath.RadiusX);
+            Assert.Equal(0.5, arcPath.RadiusY);
+            Assert.Equal(0.0, arcPath.XAxisRotation);
+            Assert.False(arcPath.IsLargeArc);
+            Assert.True(arcPath.IsCounterClockwiseSweep);
+
+            var expected = new XElement("path",
+                new XAttribute("d", arcPath.ToPath()),
+                new XAttribute("fill-opacity", "0"),
+                new XAttribute("stroke-width", "1.0px"),
+                new XAttribute("vector-effect", "non-scaling-stroke"));
+            var actual = ellipse.ToXElement();
+            AssertXElement(expected, actual);
+        }
+
+        [Fact]
         public void RenderLineTest()
         {
             var line = new DxfLine(new DxfPoint(1.0, 2.0, 3.0), new DxfPoint(4.0, 5.0, 6.0));
@@ -93,6 +130,13 @@ namespace IxMilia.Converters.Test
                 new XAttribute("vector-effect", "non-scaling-stroke"));
             var actual = line.ToXElement();
             AssertXElement(expected, actual);
+        }
+
+        [Fact]
+        public void SvgArcPathToStringTest()
+        {
+            var arcPath = new SvgArcPath(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, true, false);
+            Assert.Equal("M 1.0 2.0 A 5.0 6.0 7.0 1 0 3.0 4.0", arcPath.ToPath());
         }
 
         [Fact]

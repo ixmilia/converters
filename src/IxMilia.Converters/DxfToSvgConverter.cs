@@ -211,6 +211,8 @@ namespace IxMilia.Converters
                     return arc.ToXElement();
                 case DxfCircle circle:
                     return circle.ToXElement();
+                case DxfEllipse el:
+                    return el.ToXElement();
                 case DxfLine line:
                     return line.ToXElement();
                 default:
@@ -220,29 +222,10 @@ namespace IxMilia.Converters
 
         public static XElement ToXElement(this DxfArc arc)
         {
-            // large arc and counterclockwise computations all rely on the end angle being greater than the start
-            var endAngle = arc.EndAngle;
-            while (endAngle < arc.StartAngle)
-            {
-                endAngle += 360.0;
-            }
-
+            var arcTo = arc.GetArcPath();
             var startPoint = arc.GetPointFromAngle(arc.StartAngle);
-            var endPoint = arc.GetPointFromAngle(endAngle);
-            var isLargeArc = (endAngle - arc.StartAngle) > 180.0;
-            var isCounterClockwise = endAngle > arc.StartAngle;
-            var pathData = string.Format("M {0} {1} a {2} {3} {4} {5} {6} {7} {8}",
-                startPoint.X.ToDisplayString(),
-                startPoint.Y.ToDisplayString(),
-                arc.Radius.ToDisplayString(),
-                arc.Radius.ToDisplayString(),
-                0, // x axis rotation
-                isLargeArc ? 1 : 0, // large arc flag
-                isCounterClockwise ? 1 : 0, // sweep flag
-                (endPoint.X - startPoint.X).ToDisplayString(),
-                (endPoint.Y - startPoint.Y).ToDisplayString());
             return new XElement(DxfToSvgConverter.Xmlns + "path",
-                new XAttribute("d", pathData),
+                new XAttribute("d", arcTo.ToPath()),
                 new XAttribute("fill-opacity", 0))
                 .AddStroke(arc.Color)
                 .AddStrokeWidth(arc.Thickness)
@@ -262,6 +245,17 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
+        public static XElement ToXElement(this DxfEllipse ellipse)
+        {
+            var arcTo = ellipse.GetArcPath();
+            var startPoint = ellipse.GetPointFromAngle(ellipse.StartParameter);
+            return new XElement(DxfToSvgConverter.Xmlns + "path",
+                new XAttribute("d", arcTo.ToPath()),
+                new XAttribute("fill-opacity", 0)).AddStroke(ellipse.Color)
+                .AddStrokeWidth(1.0)
+                .AddVectorEffect();
+        }
+
         public static XElement ToXElement(this DxfLine line)
         {
             return new XElement(DxfToSvgConverter.Xmlns + "line",
@@ -272,6 +266,41 @@ namespace IxMilia.Converters
                 .AddStroke(line.Color)
                 .AddStrokeWidth(line.Thickness)
                 .AddVectorEffect();
+        }
+
+        internal static SvgArcPath GetArcPath(this DxfArc arc)
+        {
+            // large arc and counterclockwise computations all rely on the end angle being greater than the start
+            var endAngle = arc.EndAngle;
+            while (endAngle < arc.StartAngle)
+            {
+                endAngle += 360.0;
+            }
+
+            var startPoint = arc.GetPointFromAngle(arc.StartAngle);
+            var endPoint = arc.GetPointFromAngle(endAngle);
+            var isLargeArc = (endAngle - arc.StartAngle) > 180.0;
+            var isCounterClockwise = endAngle > arc.StartAngle;
+            return new SvgArcPath(startPoint.X, startPoint.Y, endPoint.X, endPoint.Y, arc.Radius, arc.Radius, 0.0, isLargeArc, isCounterClockwise);
+        }
+
+        internal static SvgArcPath GetArcPath(this DxfEllipse ellipse)
+        {
+            // large arc and counterclockwise computations all rely on the end angle being greater than the start
+            var endParameter = ellipse.EndParameter;
+            while (endParameter < ellipse.StartParameter)
+            {
+                endParameter += Math.PI * 2.0;
+            }
+
+            var startPoint = ellipse.GetPointFromAngle(ellipse.StartParameter);
+            var endPoint = ellipse.GetPointFromAngle(endParameter);
+            var isLargeArc = (endParameter - ellipse.StartParameter) > Math.PI;
+            var isCounterClockwise = endParameter > ellipse.StartParameter;
+            var majorAxisLength = ellipse.MajorAxis.Length;
+            var minorAxisLength = majorAxisLength * ellipse.MinorAxisRatio;
+            var majorAxisAngle = Math.Atan2(ellipse.MajorAxis.Y, ellipse.MajorAxis.X);
+            return new SvgArcPath(startPoint.X, startPoint.Y, endPoint.X, endPoint.Y, majorAxisLength, minorAxisLength, majorAxisAngle, isLargeArc, isCounterClockwise);
         }
 
         private static XElement AddStroke(this XElement element, DxfColor color)
@@ -303,6 +332,50 @@ namespace IxMilia.Converters
         {
             element.Add(new XAttribute("vector-effect", "non-scaling-stroke"));
             return element;
+        }
+    }
+
+    internal struct SvgArcPath
+    {
+        public double StartPointX { get; }
+        public double StartPointY { get; }
+        public double EndPointX{ get; }
+        public double EndPointY { get; }
+        public double RadiusX { get; }
+        public double RadiusY { get; }
+        public double XAxisRotation { get; }
+        public bool IsLargeArc { get; }
+        public bool IsCounterClockwiseSweep { get; }
+
+        public SvgArcPath(double startPointX, double startPointY, double endPointX, double endPointY, double radiusX, double radiusY, double xAxisRotation, bool isLargeArc, bool isCounterClockwiseSweep)
+        {
+            StartPointX = startPointX;
+            StartPointY = startPointY;
+            EndPointX = endPointX;
+            EndPointY = endPointY;
+            RadiusX = radiusX;
+            RadiusY = radiusY;
+            XAxisRotation = xAxisRotation;
+            IsLargeArc = isLargeArc;
+            IsCounterClockwiseSweep = isCounterClockwiseSweep;
+        }
+
+        public string ToPath()
+        {
+            return string.Join(" ", new object[]
+            {
+                "M", // move absolute
+                StartPointX.ToDisplayString(),
+                StartPointY.ToDisplayString(),
+                "A", // arc absolute
+                RadiusX.ToDisplayString(),
+                RadiusY.ToDisplayString(),
+                XAxisRotation.ToDisplayString(),
+                IsLargeArc ? 1 : 0,
+                IsCounterClockwiseSweep ? 1 : 0,
+                EndPointX.ToDisplayString(),
+                EndPointY.ToDisplayString()
+            });
         }
     }
 }

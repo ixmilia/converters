@@ -1,20 +1,11 @@
-﻿using System;
-using IxMilia.Dxf;
+﻿using IxMilia.Dxf;
 using IxMilia.Dxf.Entities;
 using Xunit;
 
 namespace IxMilia.Converters.Test
 {
-    public class DxfExtensionTests
+    public class DxfExtensionTests : TestBase
     {
-        private const double Epsilon = 1.0e-10;
-
-        private static bool AreClose(double expected, double actual)
-        {
-            var delta = Math.Abs(expected - actual);
-            return delta < Epsilon;
-        }
-
         private static void AssertClose(DxfPoint expected, DxfPoint actual)
         {
             Assert.True(

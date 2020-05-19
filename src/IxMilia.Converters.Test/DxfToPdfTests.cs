@@ -7,7 +7,7 @@ using Xunit;
 
 namespace IxMilia.Converters.Test
 {
-    public class DxfToPdfTests : TestBase<DxfFile, PdfFile>
+    public class DxfToPdfTests : TestBase
     {
         private static string ConvertToString(DxfFile dxf, PdfMeasurement? pageWidth = null, PdfMeasurement? pageHeight = null, double scale = 1.0)
         {
