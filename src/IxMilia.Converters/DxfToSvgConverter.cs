@@ -215,6 +215,8 @@ namespace IxMilia.Converters
                     return el.ToXElement();
                 case DxfLine line:
                     return line.ToXElement();
+                case DxfLwPolyline poly:
+                    return poly.ToXElement();
                 default:
                     return null;
             }
@@ -281,6 +283,75 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
+        public static XElement ToXElement(this DxfLwPolyline poly)
+        {
+            var path = poly.GetSvgPath();
+            return new XElement(DxfToSvgConverter.Xmlns + "path",
+                new XAttribute("d", path.ToString()),
+                new XAttribute("fill-opacity", 0))
+                .AddStroke(poly.Color)
+                .AddStrokeWidth(1.0)
+                .AddVectorEffect();
+        }
+
+        private static IEnumerable<SvgPathSegment> FromPolylineVertices(DxfLwPolylineVertex last, DxfLwPolylineVertex next)
+        {
+            var dx = next.X - last.X;
+            var dy = next.Y - last.Y;
+            var dist = Math.Sqrt(dx * dx + dy * dy);
+            if (last.Bulge == 0.0 || IsCloseTo(dist, 1.0e-10))
+            {
+                // line or a really short arc
+                return new[] { new SvgLineToPath(next.X, next.Y) };
+            }
+
+            // given the following diagram:
+            //
+            //                p1
+            //               -)
+            //            -  |  )
+            //        -      |    )
+            //    -          |     )
+            // O ------------|C----T
+            //    -          |     )
+            //        -      |    )
+            //            -  |  )
+            //               -)
+            //               p2
+            //
+            // where O is the center of the circle, C is the midpoint between p1 and p2, calculate
+            // the hypotenuse of the triangle Op1C to get the radius
+
+            var includedAngle = Math.Atan(Math.Abs(last.Bulge)) * 4.0;
+            var isCounterClockwise = last.Bulge > 0.0;
+
+            // find radius
+            var oppositeLength = dist / 2.0;
+            var radius = oppositeLength / Math.Sin(includedAngle / 2.0);
+
+            // find vector from the center to point C
+            var vx = -dy;
+            var vy = dx;
+            var vlp = Math.Sqrt(vx * vx + vy * vy);
+            var vxn = vx / vlp;
+            var vyn = vy / vlp;
+            var vl = Math.Sqrt(radius * radius - (dist * dist / 4.0));
+
+            // now backtrack from point C to the center
+            var cx = (next.X + last.X) / 2.0;
+            var cy = (next.Y + last.Y) / 2.0;
+            var centerX = cx + vxn * vl;
+            var centerY = cy + vyn * vl;
+
+            // from there we can get the start/end angles
+            var startAngle = Math.Atan2(last.Y - centerY, last.X - centerX);
+            var endAngle = Math.Atan2(next.Y - centerY, next.X - centerX);
+
+            // then compute like before
+            var segments = SvgPath.FromEllipse(centerX, centerY, radius, 0.0, 1.0, startAngle, endAngle).Segments;
+            return segments.Skip(1); // don't return the first MoveTo
+        }
+
         internal static SvgPath GetSvgPath(this DxfArc arc)
         {
             var startAngle = arc.StartAngle * Math.PI / 180.0;
@@ -291,6 +362,26 @@ namespace IxMilia.Converters
         internal static SvgPath GetSvgPath(this DxfEllipse ellipse)
         {
             return SvgPath.FromEllipse(ellipse.Center.X, ellipse.Center.Y, ellipse.MajorAxis.X, ellipse.MajorAxis.Y, ellipse.MinorAxisRatio, ellipse.StartParameter, ellipse.EndParameter);
+        }
+
+        internal static SvgPath GetSvgPath(this DxfLwPolyline poly)
+        {
+            var first = poly.Vertices.First();
+            var segments = new List<SvgPathSegment>();
+            segments.Add(new SvgMoveToPath(first.X, first.Y));
+            var last = first;
+            foreach (var next in poly.Vertices.Skip(1))
+            {
+                segments.AddRange(FromPolylineVertices(last, next));
+                last = next;
+            }
+
+            if (poly.IsClosed)
+            {
+                segments.AddRange(FromPolylineVertices(last, first));
+            }
+
+            return new SvgPath(segments);
         }
 
         private static XElement AddStroke(this XElement element, DxfColor color)

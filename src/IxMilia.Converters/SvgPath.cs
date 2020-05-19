@@ -93,6 +93,28 @@ namespace IxMilia.Converters
         }
     }
 
+    public class SvgLineToPath : SvgPathSegment
+    {
+        public double LocationX { get; }
+        public double LocationY { get; }
+
+        public SvgLineToPath(double locationX, double locationY)
+        {
+            LocationX = locationX;
+            LocationY = locationY;
+        }
+
+        public override string ToString()
+        {
+            return string.Join(" ", new[]
+            {
+                "L", // line absolute
+                LocationX.ToDisplayString(),
+                LocationY.ToDisplayString()
+            });
+        }
+    }
+
     public class SvgArcToPath : SvgPathSegment
     {
         public double RadiusX { get; }

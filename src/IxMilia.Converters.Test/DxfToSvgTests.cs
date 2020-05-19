@@ -227,7 +227,122 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
-        public void SvgArcPathToStringTest()
+        public void RenderClosedLwPolylineTest()
+        {
+            //   1,1 D
+            //    ------------- 2,1 C
+            //  /             |
+            // |             /
+            // ____________-
+            // 0,0      1,0
+            //  A        B
+            var bulge90Degrees = Math.Sqrt(2.0) - 1.0;
+            var vertices = new List<DxfLwPolylineVertex>()
+            {
+                new DxfLwPolylineVertex() { X = 0.0, Y = 0.0 }, // A
+                new DxfLwPolylineVertex() { X = 1.0, Y = 0.0, Bulge = bulge90Degrees }, // B
+                new DxfLwPolylineVertex() { X = 2.0, Y = 1.0 }, // C
+                new DxfLwPolylineVertex() { X = 1.0, Y = 1.0, Bulge = bulge90Degrees } // D
+            };
+            var poly = new DxfLwPolyline(vertices);
+            poly.IsClosed = true;
+            var path = poly.GetSvgPath();
+            Assert.Equal(5, path.Segments.Count);
+
+            var start = (SvgMoveToPath)path.Segments[0];
+            AssertClose(0.0, start.LocationX);
+            AssertClose(0.0, start.LocationY);
+
+            var segmentAB = (SvgLineToPath)path.Segments[1];
+            AssertClose(1.0, segmentAB.LocationX);
+            AssertClose(0.0, segmentAB.LocationY);
+
+            var segmentBC = (SvgArcToPath)path.Segments[2];
+            AssertClose(2.0, segmentBC.EndPointX);
+            AssertClose(1.0, segmentBC.EndPointY);
+            AssertClose(1.0, segmentBC.RadiusX);
+            AssertClose(1.0, segmentBC.RadiusY);
+            AssertClose(0.0, segmentBC.XAxisRotation);
+            Assert.False(segmentBC.IsLargeArc);
+            Assert.True(segmentBC.IsCounterClockwiseSweep);
+
+            var segmentCD = (SvgLineToPath)path.Segments[3];
+            AssertClose(1.0, segmentCD.LocationX);
+            AssertClose(1.0, segmentCD.LocationY);
+
+            var segmentDA = (SvgArcToPath)path.Segments[4];
+            AssertClose(0.0, segmentDA.EndPointX);
+            AssertClose(0.0, segmentDA.EndPointY);
+            AssertClose(1.0, segmentDA.RadiusX);
+            AssertClose(1.0, segmentDA.RadiusY);
+            AssertClose(0.0, segmentDA.XAxisRotation);
+            Assert.False(segmentDA.IsLargeArc);
+            Assert.True(segmentDA.IsCounterClockwiseSweep);
+
+            var expected = new XElement("path",
+                new XAttribute("d", path.ToString()),
+                new XAttribute("fill-opacity", "0"),
+                new XAttribute("stroke-width", "1.0px"),
+                new XAttribute("vector-effect", "non-scaling-stroke"));
+            var actual = poly.ToXElement();
+            AssertXElement(expected, actual);
+        }
+
+        [Fact]
+        public void RenderOpenLwPolylineTest()
+        {
+            //   1,1 D
+            //    ------------- 2,1 C
+            //                |
+            //               /
+            // ____________-
+            // 0,0      1,0
+            //  A        B
+            var bulge90Degrees = Math.Sqrt(2.0) - 1.0;
+            var vertices = new List<DxfLwPolylineVertex>()
+            {
+                new DxfLwPolylineVertex() { X = 0.0, Y = 0.0 }, // A
+                new DxfLwPolylineVertex() { X = 1.0, Y = 0.0, Bulge = bulge90Degrees }, // B
+                new DxfLwPolylineVertex() { X = 2.0, Y = 1.0 }, // C
+                new DxfLwPolylineVertex() { X = 1.0, Y = 1.0, Bulge = bulge90Degrees } // D
+            };
+            var poly = new DxfLwPolyline(vertices);
+            poly.IsClosed = false;
+            var path = poly.GetSvgPath();
+            Assert.Equal(4, path.Segments.Count);
+
+            var start = (SvgMoveToPath)path.Segments[0];
+            AssertClose(0.0, start.LocationX);
+            AssertClose(0.0, start.LocationY);
+
+            var segmentAB = (SvgLineToPath)path.Segments[1];
+            AssertClose(1.0, segmentAB.LocationX);
+            AssertClose(0.0, segmentAB.LocationY);
+
+            var segmentBC = (SvgArcToPath)path.Segments[2];
+            AssertClose(2.0, segmentBC.EndPointX);
+            AssertClose(1.0, segmentBC.EndPointY);
+            AssertClose(1.0, segmentBC.RadiusX);
+            AssertClose(1.0, segmentBC.RadiusY);
+            AssertClose(0.0, segmentBC.XAxisRotation);
+            Assert.False(segmentBC.IsLargeArc);
+            Assert.True(segmentBC.IsCounterClockwiseSweep);
+
+            var segmentCD = (SvgLineToPath)path.Segments[3];
+            AssertClose(1.0, segmentCD.LocationX);
+            AssertClose(1.0, segmentCD.LocationY);
+
+            var expected = new XElement("path",
+                new XAttribute("d", path.ToString()),
+                new XAttribute("fill-opacity", "0"),
+                new XAttribute("stroke-width", "1.0px"),
+                new XAttribute("vector-effect", "non-scaling-stroke"));
+            var actual = poly.ToXElement();
+            AssertXElement(expected, actual);
+        }
+
+        [Fact]
+        public void SvgPathToStringTest()
         {
             var path = new SvgPath(new SvgPathSegment[]
             {
