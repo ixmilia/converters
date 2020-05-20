@@ -82,12 +82,12 @@ namespace IxMilia.Converters
             // add navigation controls
             var controls = new XElement(Xmlns + "g",
                 new XAttribute("transform", "translate(0 0)"),
-                SvgButton(0, "-", "doZoom(1)"), // zoom out button
-                SvgButton(1, "+", "doZoom(-1)"), // zoom in button
-                SvgButton(2, "<", "doPan(-1, 0)"), // pan left
-                SvgButton(3, ">", "doPan(1, 0)"), // pan right
-                SvgButton(4, "^", "doPan(0, -1)"), // pan up
-                SvgButton(5, "v", "doPan(0, 1)")); // pan down
+                SvgButton(0, "-", "button-zoom-out"), // zoom out button
+                SvgButton(1, "+", "button-zoom-in"), // zoom in button
+                SvgButton(2, "<", "button-pan-left"), // pan left
+                SvgButton(3, ">", "button-pan-right"), // pan right
+                SvgButton(4, "^", "button-pan-up"), // pan up
+                SvgButton(5, "v", "button-pan-down")); // pan down
             svg.Add(controls);
 
             // add css
@@ -103,7 +103,7 @@ namespace IxMilia.Converters
 
         private const int ButtonSize = 24;
 
-        private static IEnumerable<XElement> SvgButton(int xOrder, string text, string action)
+        private static IEnumerable<XElement> SvgButton(int xOrder, string text, string buttonClass)
         {
             yield return new XElement(Xmlns + "rect",
                 new XAttribute("x", "0"),
@@ -120,9 +120,8 @@ namespace IxMilia.Converters
             yield return new XElement(Xmlns + "rect",
                 new XAttribute("x", "0"),
                 new XAttribute("y", "0"),
-                new XAttribute("class", "svg-button-overlay"),
-                new XAttribute("transform", $"translate({xOrder * ButtonSize} 0)"),
-                new XAttribute("onclick", action));
+                new XAttribute("class", $"svg-button-overlay {buttonClass}"),
+                new XAttribute("transform", $"translate({xOrder * ButtonSize} 0)"));
         }
 
         private static string GetJavascriptControls(string svgId)
