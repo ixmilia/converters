@@ -342,6 +342,32 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
+        public void LwPolylineWithLargeArcTest()
+        {
+            var vertices = new List<DxfLwPolylineVertex>()
+            {
+                new DxfLwPolylineVertex() { X = 0.6802950090711775, Y = 1.360590018142377, Bulge = 1.523362963416235 },
+                new DxfLwPolylineVertex() { X = 1.176774337206015, Y = 0.2152040759172933 }
+            };
+            var poly = new DxfLwPolyline(vertices);
+            var path = poly.GetSvgPath();
+            Assert.Equal(2, path.Segments.Count);
+
+            var move = (SvgMoveToPath)path.Segments[0];
+            AssertClose(0.6802950090711775, move.LocationX);
+            AssertClose(1.360590018142377, move.LocationY);
+
+            var arc = (SvgArcToPath)path.Segments[1];
+            AssertClose(1.176774337206015, arc.EndPointX);
+            AssertClose(0.2152040759172933, arc.EndPointY);
+            AssertClose(0.68029500907118867, arc.RadiusX);
+            AssertClose(0.68029500907118867, arc.RadiusY);
+            Assert.True(arc.IsCounterClockwiseSweep);
+            Assert.True(arc.IsLargeArc);
+            Assert.Equal(0.0, arc.XAxisRotation);
+        }
+
+        [Fact]
         public void SvgPathToStringTest()
         {
             var path = new SvgPath(new SvgPathSegment[]

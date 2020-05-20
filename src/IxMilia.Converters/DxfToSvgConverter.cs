@@ -294,7 +294,7 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
-        private static IEnumerable<SvgPathSegment> FromPolylineVertices(DxfLwPolylineVertex last, DxfLwPolylineVertex next)
+        private static SvgPathSegment FromPolylineVertices(DxfLwPolylineVertex last, DxfLwPolylineVertex next)
         {
             var dx = next.X - last.X;
             var dy = next.Y - last.Y;
@@ -302,7 +302,7 @@ namespace IxMilia.Converters
             if (last.Bulge == 0.0 || IsCloseTo(dist, 1.0e-10))
             {
                 // line or a really short arc
-                return new[] { new SvgLineToPath(next.X, next.Y) };
+                return new SvgLineToPath(next.X, next.Y);
             }
 
             // given the following diagram:
@@ -323,7 +323,7 @@ namespace IxMilia.Converters
             // the hypotenuse of the triangle Op1C to get the radius
 
             var includedAngle = Math.Atan(Math.Abs(last.Bulge)) * 4.0;
-            var isCounterClockwise = last.Bulge > 0.0;
+            var isLargeArc = includedAngle > Math.PI;
 
             // find radius
             var oppositeLength = dist / 2.0;
@@ -340,16 +340,21 @@ namespace IxMilia.Converters
             // now backtrack from point C to the center
             var cx = (next.X + last.X) / 2.0;
             var cy = (next.Y + last.Y) / 2.0;
-            var centerX = cx + vxn * vl;
-            var centerY = cy + vyn * vl;
+            var backtrackScale = isLargeArc ? -1.0 : 1.0;
+            var centerX = cx + vxn * vl * backtrackScale;
+            var centerY = cy + vyn * vl * backtrackScale;
 
-            // from there we can get the start/end angles
+            // from there we can get the start angle
             var startAngle = Math.Atan2(last.Y - centerY, last.X - centerX);
-            var endAngle = Math.Atan2(next.Y - centerY, next.X - centerX);
 
-            // then compute like before
-            var segments = SvgPath.FromEllipse(centerX, centerY, radius, 0.0, 1.0, startAngle, endAngle).Segments;
-            return segments.Skip(1); // don't return the first MoveTo
+            // and then determine the direction of the sweep
+            var startAngleSin = Math.Sin(startAngle);
+            var startAngleCos = Math.Cos(startAngle);
+            var calculatedStartX = startAngleCos * radius + centerX;
+            var calculatedStartY = startAngleSin * radius + centerY;
+            var isCounterClockwise = IsCloseTo(last.X, calculatedStartX) && IsCloseTo(last.Y, calculatedStartY);
+
+            return new SvgArcToPath(radius, radius, 0.0, isLargeArc, isCounterClockwise, next.X, next.Y);
         }
 
         internal static SvgPath GetSvgPath(this DxfArc arc)
@@ -372,13 +377,13 @@ namespace IxMilia.Converters
             var last = first;
             foreach (var next in poly.Vertices.Skip(1))
             {
-                segments.AddRange(FromPolylineVertices(last, next));
+                segments.Add(FromPolylineVertices(last, next));
                 last = next;
             }
 
             if (poly.IsClosed)
             {
-                segments.AddRange(FromPolylineVertices(last, first));
+                segments.Add(FromPolylineVertices(last, first));
             }
 
             return new SvgPath(segments);
