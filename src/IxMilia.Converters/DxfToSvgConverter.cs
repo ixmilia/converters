@@ -324,35 +324,11 @@ namespace IxMilia.Converters
 
             var includedAngle = Math.Atan(Math.Abs(last.Bulge)) * 4.0;
             var isLargeArc = includedAngle > Math.PI;
+            var isCounterClockwise = last.Bulge > 0.0;
 
             // find radius
             var oppositeLength = dist / 2.0;
             var radius = oppositeLength / Math.Sin(includedAngle / 2.0);
-
-            // find vector from the center to point C
-            var vx = -dy;
-            var vy = dx;
-            var vlp = Math.Sqrt(vx * vx + vy * vy);
-            var vxn = vx / vlp;
-            var vyn = vy / vlp;
-            var vl = Math.Sqrt(radius * radius - (dist * dist / 4.0));
-
-            // now backtrack from point C to the center
-            var cx = (next.X + last.X) / 2.0;
-            var cy = (next.Y + last.Y) / 2.0;
-            var backtrackScale = isLargeArc ? -1.0 : 1.0;
-            var centerX = cx + vxn * vl * backtrackScale;
-            var centerY = cy + vyn * vl * backtrackScale;
-
-            // from there we can get the start angle
-            var startAngle = Math.Atan2(last.Y - centerY, last.X - centerX);
-
-            // and then determine the direction of the sweep
-            var startAngleSin = Math.Sin(startAngle);
-            var startAngleCos = Math.Cos(startAngle);
-            var calculatedStartX = startAngleCos * radius + centerX;
-            var calculatedStartY = startAngleSin * radius + centerY;
-            var isCounterClockwise = IsCloseTo(last.X, calculatedStartX) && IsCloseTo(last.Y, calculatedStartY);
 
             return new SvgArcToPath(radius, radius, 0.0, isLargeArc, isCounterClockwise, next.X, next.Y);
         }

@@ -342,7 +342,7 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
-        public void LwPolylineWithLargeArcTest()
+        public void LwPolylineWithLargeArcTest1()
         {
             var vertices = new List<DxfLwPolylineVertex>()
             {
@@ -364,6 +364,32 @@ namespace IxMilia.Converters.Test
             AssertClose(0.68029500907118867, arc.RadiusY);
             Assert.True(arc.IsCounterClockwiseSweep);
             Assert.True(arc.IsLargeArc);
+            Assert.Equal(0.0, arc.XAxisRotation);
+        }
+
+        [Fact]
+        public void LwPolylineWithLargeArcTest2()
+        {
+            var vertices = new List<DxfLwPolylineVertex>()
+            {
+                new DxfLwPolylineVertex() { X = 1.176774337206015, Y = 0.2152040759172933, Bulge = -0.1085213126826841 },
+                new DxfLwPolylineVertex() { X = 1.501796342836956, Y = 0.2867624159371331 }
+            };
+            var poly = new DxfLwPolyline(vertices);
+            var path = poly.GetSvgPath();
+            Assert.Equal(2, path.Segments.Count);
+
+            var move = (SvgMoveToPath)path.Segments[0];
+            AssertClose(1.176774337206015, move.LocationX);
+            AssertClose(0.2152040759172933, move.LocationY);
+
+            var arc = (SvgArcToPath)path.Segments[1];
+            AssertClose(1.501796342836956, arc.EndPointX);
+            AssertClose(0.2867624159371331, arc.EndPointY);
+            AssertClose(0.77571287053371341, arc.RadiusX);
+            AssertClose(0.77571287053371341, arc.RadiusY);
+            Assert.False(arc.IsCounterClockwiseSweep);
+            Assert.False(arc.IsLargeArc);
             Assert.Equal(0.0, arc.XAxisRotation);
         }
 
