@@ -32,25 +32,7 @@ namespace IxMilia.Converters
         public XElement Convert(DxfFile source, DxfToSvgConverterOptions options)
         {
             // adapted from https://github.com/ixmilia/bcad/blob/master/src/IxMilia.BCad.FileHandlers/Plotting/Svg/SvgPlotter.cs
-
-            var root = new XElement(Xmlns + "svg",
-                new XAttribute("width", options.SvgDestination.ElementWidth.ToDisplayString()),
-                new XAttribute("height", options.SvgDestination.ElementHeight.ToDisplayString()),
-                new XAttribute("viewBox", $"{options.DxfSource.Left.ToDisplayString()} {options.DxfSource.Bottom.ToDisplayString()} {options.DxfSource.Width.ToDisplayString()} {options.DxfSource.Height.ToDisplayString()}"),
-                new XAttribute("version", "1.1"));
-
-            var xscale = 1.0;
-            var yscale = -1.0;
-
-            // y-axis in svg increases going down the screen, but decreases in dxf
-            var xoffset = 0.0;
-            var yoffset = options.DxfSource.Height;
-            root.Add(new XComment(" all entities are drawn in world coordinates and this root group controls the final view "));
-            var world = new XElement(Xmlns + "g",
-                new XAttribute("transform", $"translate({xoffset.ToDisplayString()} {yoffset.ToDisplayString()}) scale({xscale.ToDisplayString()} {yscale.ToDisplayString()})"),
-                new XAttribute("class", "svg-viewport"));
-            root.Add(world);
-
+            var world = new XElement(Xmlns + "g");
             foreach (var layer in source.Layers.OrderBy(l => l.Name))
             {
                 var autoColor = DxfColor.FromIndex(0);
@@ -70,7 +52,34 @@ namespace IxMilia.Converters
                 world.Add(g);
             }
 
-            root = TransformToHtmlDiv(root, options.SvgId, xoffset, yoffset, xscale, yscale);
+            var dxfar = options.DxfSource.Width / options.DxfSource.Height;
+            var svgar = options.SvgDestination.ElementWidth / options.SvgDestination.ElementHeight;
+            var scale = svgar < dxfar
+                ? options.SvgDestination.ElementWidth / options.DxfSource.Width
+                : options.SvgDestination.ElementHeight / options.DxfSource.Height;
+
+            var root = new XElement(Xmlns + "svg",
+                new XAttribute("width", options.SvgDestination.ElementWidth.ToDisplayString()),
+                new XAttribute("height", options.SvgDestination.ElementHeight.ToDisplayString()),
+                new XAttribute("viewBox", $"0 0 {options.SvgDestination.ElementWidth.ToDisplayString()} {options.SvgDestination.ElementHeight.ToDisplayString()}"),
+                new XAttribute("version", "1.1"),
+                new XComment(" this group corrects for the y-axis going in different directions "),
+                new XElement(Xmlns + "g",
+                    new XAttribute("transform", $"translate(0 {options.SvgDestination.ElementHeight.ToDisplayString()}) scale(1 -1)"),
+                    new XComment(" this group handles display panning "),
+                    new XElement(Xmlns + "g",
+                        new XAttribute("transform", "translate(0 0)"),
+                        new XAttribute("class", "svg-translate"),
+                        new XComment(" this group handles display scaling "),
+                        new XElement(Xmlns + "g",
+                            new XAttribute("transform", $"scale({scale.ToDisplayString()} {scale.ToDisplayString()})"),
+                            new XAttribute("class", "svg-scale"),
+                            new XComment(" this group handles initial translation offset "),
+                            new XElement(Xmlns + "g",
+                                new XAttribute("transform", $"translate({(-options.DxfSource.Left).ToDisplayString()} {(-options.DxfSource.Bottom).ToDisplayString()})"),
+                                world)))));
+
+            root = TransformToHtmlDiv(root, options.SvgId, -options.DxfSource.Left, -options.DxfSource.Bottom, scale, scale);
             return root;
         }
 

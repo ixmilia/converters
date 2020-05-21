@@ -1,55 +1,38 @@
 ﻿(function (svgDomId, defaultXTranslate, defaultYTranslate, defaultXScale, defaultYScale) {
     let drawing = document.getElementById(svgDomId);
-    let viewport = drawing.querySelectorAll('.svg-viewport')[0];
-    let transforms = viewport.transform.baseVal;
+    let translateElement = drawing.querySelectorAll('.svg-translate')[0];
+    let scaleElement = drawing.querySelectorAll('.svg-scale')[0];
+    let translateTransform = translateElement.transform.baseVal[0];
+    let scaleTransform = scaleElement.transform.baseVal[0];
 
-    function setPan(transform, xt, yt) {
-        transform.setTranslate(xt, yt);
+    function setTranslate(xt, yt) {
+        translateTransform.setTranslate(xt, yt);
     }
 
-    function setZoom(transform, xs, ys) {
-        transform.setScale(xs, ys);
+    function setScale(xs, ys) {
+        scaleTransform.setScale(xs, ys);
     }
 
-    function pan(transform, deltaX, deltaY) {
-        let xoffset = transform.matrix.e;
-        let yoffset = transform.matrix.f;
-        setPan(transform, xoffset + deltaX, yoffset + deltaY);
+    function pan(deltaX, deltaY) {
+        let xoffset = translateTransform.matrix.e;
+        let yoffset = translateTransform.matrix.f;
+        setTranslate(xoffset + deltaX, yoffset + deltaY);
     }
 
-    function zoom(transform, scale) {
-        let xs = transform.matrix.a;
-        let ys = transform.matrix.d;
-        setZoom(transform, xs * scale, ys * scale);
-    }
-
-    function getTransformOfType(type) {
-        for (let i = 0; i < transforms.length; i++) {
-            let transform = transforms[i];
-            if (transform.type === type) {
-                return transform;
-            }
-        }
-    }
-
-    function getScaleTransform() {
-        return getTransformOfType(SVGTransform.SVG_TRANSFORM_SCALE);
-    }
-
-    function getTranslateTransform() {
-        return getTransformOfType(SVGTransform.SVG_TRANSFORM_TRANSLATE);
+    function zoom(scale) {
+        let xs = scaleTransform.matrix.a;
+        let ys = scaleTransform.matrix.d;
+        setScale(xs * scale, ys * scale);
     }
 
     function doZoom(direction) {
         let scale = direction < 0 ? 1.2 : 0.8;
-        let transform = getScaleTransform();
-        zoom(transform, scale);
+        zoom(scale);
     }
 
     function doPan(deltax, deltay) {
         let panAmount = 0.1 * drawing.clientWidth;
-        let transform = getTranslateTransform();
-        pan(transform, panAmount * deltax, panAmount * deltay);
+        pan(panAmount * deltax, panAmount * deltay);
     }
 
     drawing.querySelectorAll('.button-zoom-out').forEach(button => {
@@ -78,8 +61,8 @@
 
     drawing.querySelectorAll('.button-reset-view').forEach(button => {
         button.addEventListener('click', () => {
-            setPan(getTranslateTransform(), defaultXTranslate, defaultYTranslate);
-            setZoom(getScaleTransform(), defaultXScale, defaultYScale);
+            setTranslate(defaultXTranslate, defaultYTranslate);
+            setScale(defaultXScale, defaultYScale);
         });
     });
 })('$DRAWING-ID$', $DEFAULT-X-TRANSLATE$, $DEFAULT-Y-TRANSLATE$, $DEFAULT-X-SCALE$, $DEFAULT-Y-SCALE$);
