@@ -1,18 +1,26 @@
-﻿(function (svgDomId) {
+﻿(function (svgDomId, defaultXTranslate, defaultYTranslate, defaultXScale, defaultYScale) {
     let drawing = document.getElementById(svgDomId);
     let viewport = drawing.querySelectorAll('.svg-viewport')[0];
     let transforms = viewport.transform.baseVal;
 
+    function setPan(transform, xt, yt) {
+        transform.setTranslate(xt, yt);
+    }
+
+    function setZoom(transform, xs, ys) {
+        transform.setScale(xs, ys);
+    }
+
     function pan(transform, deltaX, deltaY) {
         let xoffset = transform.matrix.e;
         let yoffset = transform.matrix.f;
-        transform.setTranslate(xoffset + deltaX, yoffset + deltaY);
+        setPan(transform, xoffset + deltaX, yoffset + deltaY);
     }
 
     function zoom(transform, scale) {
         let xs = transform.matrix.a;
         let ys = transform.matrix.d;
-        transform.setScale(xs * scale, ys * scale);
+        setZoom(transform, xs * scale, ys * scale);
     }
 
     function getTransformOfType(type) {
@@ -67,4 +75,11 @@
     drawing.querySelectorAll('.button-pan-down').forEach(button => {
         button.addEventListener('click', () => doPan(0, 1));
     });
-})('$DRAWING-ID$');
+
+    drawing.querySelectorAll('.button-reset-view').forEach(button => {
+        button.addEventListener('click', () => {
+            setPan(getTranslateTransform(), defaultXTranslate, defaultYTranslate);
+            setZoom(getScaleTransform(), defaultXScale, defaultYScale);
+        });
+    });
+})('$DRAWING-ID$', $DEFAULT-X-TRANSLATE$, $DEFAULT-Y-TRANSLATE$, $DEFAULT-X-SCALE$, $DEFAULT-Y-SCALE$);

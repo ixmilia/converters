@@ -39,10 +39,15 @@ namespace IxMilia.Converters
                 new XAttribute("viewBox", $"{options.DxfSource.Left.ToDisplayString()} {options.DxfSource.Bottom.ToDisplayString()} {options.DxfSource.Width.ToDisplayString()} {options.DxfSource.Height.ToDisplayString()}"),
                 new XAttribute("version", "1.1"));
 
+            var xscale = 1.0;
+            var yscale = -1.0;
+
             // y-axis in svg increases going down the screen, but decreases in dxf
+            var xoffset = 0.0;
+            var yoffset = options.DxfSource.Height;
             root.Add(new XComment(" all entities are drawn in world coordinates and this root group controls the final view "));
             var world = new XElement(Xmlns + "g",
-                new XAttribute("transform", $"translate(0.0 {options.DxfSource.Height.ToDisplayString()}) scale(1.0 -1.0)"),
+                new XAttribute("transform", $"translate({xoffset.ToDisplayString()} {yoffset.ToDisplayString()}) scale({xscale.ToDisplayString()} {yscale.ToDisplayString()})"),
                 new XAttribute("class", "svg-viewport"));
             root.Add(world);
 
@@ -65,11 +70,11 @@ namespace IxMilia.Converters
                 world.Add(g);
             }
 
-            root = TransformToHtmlDiv(root, options.SvgId);
+            root = TransformToHtmlDiv(root, options.SvgId, xoffset, yoffset, xscale, yscale);
             return root;
         }
 
-        private static XElement TransformToHtmlDiv(XElement svg, string svgId)
+        private static XElement TransformToHtmlDiv(XElement svg, string svgId, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
         {
             if (string.IsNullOrWhiteSpace(svgId))
             {
@@ -87,14 +92,17 @@ namespace IxMilia.Converters
                 SvgButton(2, "<", "button-pan-left"), // pan left
                 SvgButton(3, ">", "button-pan-right"), // pan right
                 SvgButton(4, "^", "button-pan-up"), // pan up
-                SvgButton(5, "v", "button-pan-down")); // pan down
+                SvgButton(5, "v", "button-pan-down"), // pan down
+                SvgButton(6, "R", "button-reset-view")); // reset view
             svg.Add(controls);
 
             // add css
             var css = new XElement("style", GetCss(ButtonSize));
 
             // add javascript
-            var script = new XElement("script", new XAttribute("type", "text/javascript"), new XRawText(GetJavascriptControls(svgId)));
+            var script = new XElement("script",
+                new XAttribute("type", "text/javascript"),
+                new XRawText(GetJavascriptControls(svgId, defaultXTranslate, defaultYTranslate, defaultXScale, defaultYScale)));
 
             // build final element
             var div = new XElement("div", svg, css, script);
@@ -124,14 +132,19 @@ namespace IxMilia.Converters
                 new XAttribute("transform", $"translate({xOrder * ButtonSize} 0)"));
         }
 
-        private static string GetJavascriptControls(string svgId)
+        private static string GetJavascriptControls(string svgId, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
         {
             var assembly = typeof(DxfToSvgConverter).GetTypeInfo().Assembly;
             using (var jsStream = assembly.GetManifestResourceStream("IxMilia.Converters.SvgJavascriptControls.js"))
             using (var streamReader = new StreamReader(jsStream))
             {
                 var contents = Environment.NewLine + streamReader.ReadToEnd();
-                contents = contents.Replace("$DRAWING-ID$", svgId);
+                contents = contents
+                    .Replace("$DRAWING-ID$", svgId)
+                    .Replace("$DEFAULT-X-TRANSLATE$", defaultXTranslate.ToDisplayString())
+                    .Replace("$DEFAULT-Y-TRANSLATE$", defaultYTranslate.ToDisplayString())
+                    .Replace("$DEFAULT-X-SCALE$", defaultXScale.ToDisplayString())
+                    .Replace("$DEFAULT-Y-SCALE$", defaultYScale.ToDisplayString());
                 return contents;
             }
         }
