@@ -431,17 +431,20 @@ namespace IxMilia.Converters.Test
         {
             var element = new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect(), svgId: "test-id"));
             Assert.Equal("div", element.Name.LocalName);
+            Assert.Equal("test-id", element.Attribute("id").Value);
             var children = element.Elements().ToList();
-            Assert.Equal(3, children.Count);
+            Assert.Equal(4, children.Count);
 
-            var svg = children[0];
-            Assert.Equal("svg", svg.Name.LocalName);
-            Assert.Equal("test-id", svg.Attribute("id").Value);
-
-            var css = children[1];
+            var css = children[0];
             Assert.Equal("style", css.Name.LocalName);
 
-            var script = children[2];
+            var details = children[1];
+            Assert.Equal("details", details.Name.LocalName);
+
+            var svg = children[2];
+            Assert.Equal("svg", svg.Name.LocalName);
+
+            var script = children[3];
             Assert.Equal("script", script.Name.LocalName);
             Assert.Equal("text/javascript", script.Attribute("type").Value);
             Assert.Contains("function", script.Value);

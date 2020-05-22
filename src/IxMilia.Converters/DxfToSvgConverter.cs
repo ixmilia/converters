@@ -39,7 +39,8 @@ namespace IxMilia.Converters
                 world.Add(new XComment($" layer '{layer.Name}' "));
                 var g = new XElement(Xmlns + "g",
                     new XAttribute("stroke", (layer.Color ?? autoColor).ToRGBString()),
-                    new XAttribute("fill", (layer.Color ?? autoColor).ToRGBString()));
+                    new XAttribute("fill", (layer.Color ?? autoColor).ToRGBString()),
+                    new XAttribute("class", $"dxf-layer {layer.Name}"));
                 foreach (var entity in source.Entities.Where(e => e.Layer == layer.Name))
                 {
                     var element = entity.ToXElement();
@@ -63,6 +64,7 @@ namespace IxMilia.Converters
                 new XAttribute("height", options.SvgDestination.ElementHeight.ToDisplayString()),
                 new XAttribute("viewBox", $"0 0 {options.SvgDestination.ElementWidth.ToDisplayString()} {options.SvgDestination.ElementHeight.ToDisplayString()}"),
                 new XAttribute("version", "1.1"),
+                new XAttribute("class", "dxf-drawing"),
                 new XComment(" this group corrects for the y-axis going in different directions "),
                 new XElement(Xmlns + "g",
                     new XAttribute("transform", $"translate(0 {options.SvgDestination.ElementHeight.ToDisplayString()}) scale(1 -1)"),
@@ -90,55 +92,37 @@ namespace IxMilia.Converters
                 return svg;
             }
 
-            // add id to svg object
-            svg.Add(new XAttribute("id", svgId));
-
-            // add navigation controls
-            var controls = new XElement(Xmlns + "g",
-                new XAttribute("transform", "translate(0 0)"),
-                SvgButton(0, "-", "button-zoom-out"), // zoom out button
-                SvgButton(1, "+", "button-zoom-in"), // zoom in button
-                SvgButton(2, "<", "button-pan-left"), // pan left
-                SvgButton(3, ">", "button-pan-right"), // pan right
-                SvgButton(4, "^", "button-pan-up"), // pan up
-                SvgButton(5, "v", "button-pan-down"), // pan down
-                SvgButton(6, "R", "button-reset-view")); // reset view
-            svg.Add(controls);
-
-            // add css
-            var css = new XElement("style", GetCss(ButtonSize));
-
-            // add javascript
-            var script = new XElement("script",
-                new XAttribute("type", "text/javascript"),
-                new XRawText(GetJavascriptControls(svgId, defaultXTranslate, defaultYTranslate, defaultXScale, defaultYScale)));
-
-            // build final element
-            var div = new XElement("div", svg, css, script);
+            var div = new XElement("div",
+                new XAttribute("id", svgId),
+                new XElement("style", GetCss()),
+                new XElement("details",
+                    new XElement("summary", "Controls"),
+                    new XElement("button",
+                        new XAttribute("class", "button-zoom-out"),
+                        "Zoom out"),
+                    new XElement("button",
+                        new XAttribute("class", "button-zoom-in"),
+                        "Zoom in"),
+                    new XElement("button",
+                        new XAttribute("class", "button-pan-left"),
+                        "Pan left"),
+                    new XElement("button",
+                        new XAttribute("class", "button-pan-right"),
+                        "Pan right"),
+                    new XElement("button",
+                        new XAttribute("class", "button-pan-up"),
+                        "Pan up"),
+                    new XElement("button",
+                        new XAttribute("class", "button-pan-down"),
+                        "Pan down"),
+                    new XElement("button",
+                        new XAttribute("class", "button-reset-view"),
+                        "Reset")),
+                svg,
+                new XElement("script",
+                    new XAttribute("type", "text/javascript"),
+                    new XRawText(GetJavascriptControls(svgId, defaultXTranslate, defaultYTranslate, defaultXScale, defaultYScale))));
             return div;
-        }
-
-        private const int ButtonSize = 24;
-
-        private static IEnumerable<XElement> SvgButton(int xOrder, string text, string buttonClass)
-        {
-            yield return new XElement(Xmlns + "rect",
-                new XAttribute("x", "0"),
-                new XAttribute("y", "0"),
-                new XAttribute("class", "svg-button"),
-                new XAttribute("transform", $"translate({xOrder * ButtonSize} 0)"));
-            yield return new XElement(Xmlns + "text",
-                new XAttribute("x", 0),
-                new XAttribute("y", 0),
-                new XAttribute("transform", $"translate({xOrder * ButtonSize} {ButtonSize})"),
-                new XAttribute("class", "svg-button-text"),
-                text);
-            // clickable overlay
-            yield return new XElement(Xmlns + "rect",
-                new XAttribute("x", "0"),
-                new XAttribute("y", "0"),
-                new XAttribute("class", $"svg-button-overlay {buttonClass}"),
-                new XAttribute("transform", $"translate({xOrder * ButtonSize} 0)"));
         }
 
         private static string GetJavascriptControls(string svgId, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
@@ -158,14 +142,14 @@ namespace IxMilia.Converters
             }
         }
 
-        private static string GetCss(int buttonSize)
+        private static string GetCss()
         {
             var assembly = typeof(DxfToSvgConverter).GetTypeInfo().Assembly;
             using (var jsStream = assembly.GetManifestResourceStream("IxMilia.Converters.SvgStyles.css"))
             using (var streamReader = new StreamReader(jsStream))
             {
                 var contents = Environment.NewLine + streamReader.ReadToEnd();
-                contents = contents.Replace("$BUTTON-SIZE$", buttonSize.ToString());
+                // perform replacements when necessary
                 return contents;
             }
         }
