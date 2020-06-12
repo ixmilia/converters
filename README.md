@@ -32,7 +32,7 @@ Populate the submodules with
 git submodule update --init --recursive
 ```
 
-Update submodules to latest `master` with
+Update submodules to latest with
 
 ``` bash
 git submodule update --recursive --remote

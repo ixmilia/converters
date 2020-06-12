@@ -31,7 +31,7 @@ namespace IxMilia.Converters
 
         public XElement Convert(DxfFile source, DxfToSvgConverterOptions options)
         {
-            // adapted from https://github.com/ixmilia/bcad/blob/master/src/IxMilia.BCad.FileHandlers/Plotting/Svg/SvgPlotter.cs
+            // adapted from https://github.com/ixmilia/bcad/blob/main/src/IxMilia.BCad.FileHandlers/Plotting/Svg/SvgPlotter.cs
             var world = new XElement(Xmlns + "g");
             foreach (var layer in source.Layers.OrderBy(l => l.Name))
             {

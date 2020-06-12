@@ -42,7 +42,7 @@ namespace IxMilia.Converters
 
         public PdfFile Convert(DxfFile source, DxfToPdfConverterOptions options)
         {
-            // adapted from https://github.com/ixmilia/bcad/blob/master/src/IxMilia.BCad.FileHandlers/Plotting/Pdf/PdfPlotter.cs
+            // adapted from https://github.com/ixmilia/bcad/blob/main/src/IxMilia.BCad.FileHandlers/Plotting/Pdf/PdfPlotter.cs
             CreateTransformations(source.ActiveViewPort, options, out Matrix4 scale, out Matrix4 affine);
             var pdf = new PdfFile();
             var page = new PdfPage(options.PageWidth, options.PageHeight);
