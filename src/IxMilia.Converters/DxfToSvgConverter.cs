@@ -81,11 +81,12 @@ namespace IxMilia.Converters
                                 new XAttribute("transform", $"translate({(-options.DxfSource.Left).ToDisplayString()} {(-options.DxfSource.Bottom).ToDisplayString()})"),
                                 world)))));
 
-            root = TransformToHtmlDiv(root, options.SvgId, -options.DxfSource.Left, -options.DxfSource.Bottom, scale, scale);
+            var layerNames = source.Layers.OrderBy(l => l.Name).Select(l => l.Name).ToArray();
+            root = TransformToHtmlDiv(root, options.SvgId, layerNames, -options.DxfSource.Left, -options.DxfSource.Bottom, scale, scale);
             return root;
         }
 
-        private static XElement TransformToHtmlDiv(XElement svg, string svgId, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
+        private static XElement TransformToHtmlDiv(XElement svg, string svgId, string[] layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
         {
             if (string.IsNullOrWhiteSpace(svgId))
             {
@@ -118,14 +119,19 @@ namespace IxMilia.Converters
                     new XElement("button",
                         new XAttribute("class", "button-reset-view"),
                         "Reset")),
+                    new XElement("details",
+                        new XElement("summary", "Layers"),
+                        new XElement("div",
+                            new XAttribute("class", "layers-control"))
+                        ),
                 svg,
                 new XElement("script",
                     new XAttribute("type", "text/javascript"),
-                    new XRawText(GetJavascriptControls(svgId, defaultXTranslate, defaultYTranslate, defaultXScale, defaultYScale))));
+                    new XRawText(GetJavascriptControls(svgId, layerNames, defaultXTranslate, defaultYTranslate, defaultXScale, defaultYScale))));
             return div;
         }
 
-        private static string GetJavascriptControls(string svgId, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
+        private static string GetJavascriptControls(string svgId, string[] layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
         {
             var assembly = typeof(DxfToSvgConverter).GetTypeInfo().Assembly;
             using (var jsStream = assembly.GetManifestResourceStream("IxMilia.Converters.SvgJavascriptControls.js"))
@@ -134,6 +140,7 @@ namespace IxMilia.Converters
                 var contents = Environment.NewLine + streamReader.ReadToEnd();
                 contents = contents
                     .Replace("$DRAWING-ID$", svgId)
+                    .Replace("$LAYER-NAMES$", $"[{string.Join(", ", layerNames.Select(l => $"\"{l}\""))}]")
                     .Replace("$DEFAULT-X-TRANSLATE$", defaultXTranslate.ToDisplayString())
                     .Replace("$DEFAULT-Y-TRANSLATE$", defaultYTranslate.ToDisplayString())
                     .Replace("$DEFAULT-X-SCALE$", defaultXScale.ToDisplayString())

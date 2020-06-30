@@ -1,9 +1,10 @@
-﻿(function (svgDomId, defaultXTranslate, defaultYTranslate, defaultXScale, defaultYScale) {
+﻿(function (svgDomId, layerNames, defaultXTranslate, defaultYTranslate, defaultXScale, defaultYScale) {
     let drawing = document.getElementById(svgDomId);
     let translateElement = drawing.querySelectorAll('.svg-translate')[0];
     let scaleElement = drawing.querySelectorAll('.svg-scale')[0];
     let translateTransform = translateElement.transform.baseVal[0];
     let scaleTransform = scaleElement.transform.baseVal[0];
+    let layerList = drawing.querySelectorAll('.layers-control')[0];
 
     function setTranslate(xt, yt) {
         translateTransform.setTranslate(xt, yt);
@@ -35,6 +36,29 @@
         pan(panAmount * deltax, panAmount * deltay);
     }
 
+    layerNames.forEach(layerName => {
+        let layerSelector = document.createElement('div');
+        layerSelector.setAttribute('class', 'dxf-layer-selector');
+
+        let input = document.createElement('input');
+        input.checked = true;
+        input.setAttribute('type', 'checkbox');
+        input.setAttribute('name', layerName);
+        input.addEventListener('click', () => {
+            drawing.querySelectorAll(`.dxf-layer.${layerName}`).forEach(layer => {
+                layer.style.display = input.checked ? 'block' : 'none';
+            });
+        });
+        layerSelector.appendChild(input);
+
+        let label = document.createElement('label');
+        label.setAttribute('for', layerName);
+        label.innerText = layerName;
+        layerSelector.appendChild(label);
+
+        layerList.appendChild(layerSelector);
+    });
+
     drawing.querySelectorAll('.button-zoom-out').forEach(button => {
         button.addEventListener('click', () => doZoom(1));
     });
@@ -65,4 +89,4 @@
             setScale(defaultXScale, defaultYScale);
         });
     });
-})('$DRAWING-ID$', $DEFAULT-X-TRANSLATE$, $DEFAULT-Y-TRANSLATE$, $DEFAULT-X-SCALE$, $DEFAULT-Y-SCALE$);
+})('$DRAWING-ID$', $LAYER-NAMES$, $DEFAULT-X-TRANSLATE$, $DEFAULT-Y-TRANSLATE$, $DEFAULT-X-SCALE$, $DEFAULT-Y-SCALE$);

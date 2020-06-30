@@ -433,18 +433,23 @@ namespace IxMilia.Converters.Test
             Assert.Equal("div", element.Name.LocalName);
             Assert.Equal("test-id", element.Attribute("id").Value);
             var children = element.Elements().ToList();
-            Assert.Equal(4, children.Count);
+            Assert.Equal(5, children.Count);
 
             var css = children[0];
             Assert.Equal("style", css.Name.LocalName);
 
-            var details = children[1];
-            Assert.Equal("details", details.Name.LocalName);
+            var controls = children[1];
+            Assert.Equal("details", controls.Name.LocalName);
+            Assert.Equal("Controls", controls.Element("summary").Value);
 
-            var svg = children[2];
+            var layers = children[2];
+            Assert.Equal("details", layers.Name.LocalName);
+            Assert.Equal("Layers", layers.Element("summary").Value);
+
+            var svg = children[3];
             Assert.Equal("svg", svg.Name.LocalName);
 
-            var script = children[3];
+            var script = children[4];
             Assert.Equal("script", script.Name.LocalName);
             Assert.Equal("text/javascript", script.Attribute("type").Value);
             Assert.Contains("function", script.Value);
