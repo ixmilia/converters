@@ -46,7 +46,8 @@ namespace IxMilia.Converters
 
             var segments = new List<SvgPathSegment>();
             segments.Add(new SvgMoveToPath(startX, startY));
-            if (Math.Abs(Math.PI - enclosedAngle) <= 1.0)
+            var oneDegreeInRadians = Math.PI / 180.0;
+            if (Math.Abs(Math.PI - enclosedAngle) <= oneDegreeInRadians)
             {
                 // really close to a semicircle; split into to half arcs to avoid rendering artifacts
                 var midAngle = (startAngle + endAngle) / 2.0;
@@ -55,7 +56,7 @@ namespace IxMilia.Converters
                 var midX = centerX + midCos * majorAxisLength;
                 var midY = centerY + midSin * minorAxisLength;
                 segments.Add(new SvgArcToPath(majorAxisLength, minorAxisLength, axisAngle, false, isCounterClockwise, midX, midY));
-                segments.Add(new SvgArcToPath(majorAxisLength, minorAxisLength, axisAngle, isLargeArc, isCounterClockwise, endX, endY));
+                segments.Add(new SvgArcToPath(majorAxisLength, minorAxisLength, axisAngle, false, isCounterClockwise, endX, endY));
             }
             else
             {
