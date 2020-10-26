@@ -49,20 +49,6 @@ namespace IxMilia.Converters
             pdf.Pages.Add(page);
 
             var builder = new PdfPathBuilder();
-            void AddPathItemToPage(IPdfPathItem pathItem)
-            {
-                builder.Add(pathItem);
-            }
-            //void AddStreamItemToPage(PdfStreamItem streamItem)
-            //{
-            //    if (builder.Items.Count > 0)
-            //    {
-            //        page.Items.Add(builder.ToPath());
-            //        builder = new PdfPathBuilder();
-            //    }
-
-            //    page.Items.Add(streamItem);
-            //}
 
             foreach (var layer in source.Layers)
             {
