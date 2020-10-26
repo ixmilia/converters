@@ -29,11 +29,11 @@ namespace IxMilia.Converters
     {
         public static XNamespace Xmlns = "http://www.w3.org/2000/svg";
 
-        public XElement Convert(DxfFile source, DxfToSvgConverterOptions options)
+        public XElement Convert(DxfFile file, DxfToSvgConverterOptions options)
         {
             // adapted from https://github.com/ixmilia/bcad/blob/main/src/IxMilia.BCad.FileHandlers/Plotting/Svg/SvgPlotter.cs
             var world = new XElement(Xmlns + "g");
-            foreach (var layer in source.Layers.OrderBy(l => l.Name))
+            foreach (var layer in file.Layers.OrderBy(l => l.Name))
             {
                 var autoColor = DxfColor.FromIndex(0);
                 world.Add(new XComment($" layer '{layer.Name}' "));
@@ -41,9 +41,9 @@ namespace IxMilia.Converters
                     new XAttribute("stroke", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("fill", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("class", $"dxf-layer {layer.Name}"));
-                foreach (var entity in source.Entities.Where(e => e.Layer == layer.Name))
+                foreach (var entity in file.Entities.Where(e => e.Layer == layer.Name))
                 {
-                    var element = entity.ToXElement(source);
+                    var element = entity.ToXElement(file);
                     if (element != null)
                     {
                         g.Add(element);
@@ -81,7 +81,7 @@ namespace IxMilia.Converters
                                 new XAttribute("transform", $"translate({(-options.DxfSource.Left).ToDisplayString()} {(-options.DxfSource.Bottom).ToDisplayString()})"),
                                 world)))));
 
-            var layerNames = source.Layers.OrderBy(l => l.Name).Select(l => l.Name).ToArray();
+            var layerNames = file.Layers.OrderBy(l => l.Name).Select(l => l.Name).ToArray();
             root = TransformToHtmlDiv(root, options.SvgId, layerNames, -options.DxfSource.Left, -options.DxfSource.Bottom, scale, scale);
             return root;
         }
