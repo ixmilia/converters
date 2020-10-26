@@ -223,12 +223,14 @@ namespace IxMilia.Converters
                     return arc.ToXElement();
                 case DxfCircle circle:
                     return circle.ToXElement();
-                case DxfEllipse el:
-                    return el.ToXElement();
+                case DxfEllipse ellipse:
+                    return ellipse.ToXElement();
                 case DxfLine line:
                     return line.ToXElement();
-                case DxfLwPolyline poly:
-                    return poly.ToXElement();
+                case DxfLwPolyline lwPolyline:
+                    return lwPolyline.ToXElement();
+                case DxfPolyline polyline:
+                    return polyline.ToXElement();
                 default:
                     return null;
             }
@@ -295,6 +297,17 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
+        public static XElement ToXElement(this DxfPolyline poly)
+        {
+            var path = poly.GetSvgPath();
+            return new XElement(DxfToSvgConverter.Xmlns + "path",
+                    new XAttribute("d", path.ToString()),
+                    new XAttribute("fill-opacity", 0))
+                .AddStroke(poly.Color)
+                .AddStrokeWidth(1.0)
+                .AddVectorEffect();
+        }
+
         public static XElement ToXElement(this DxfLwPolyline poly)
         {
             var path = poly.GetSvgPath();
@@ -306,7 +319,7 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
-        private static SvgPathSegment FromPolylineVertices(DxfLwPolylineVertex last, DxfLwPolylineVertex next)
+        private static SvgPathSegment FromLwPolylineVertices(DxfLwPolylineVertex last, DxfLwPolylineVertex next)
         {
             var dx = next.X - last.X;
             var dy = next.Y - last.Y;
@@ -345,6 +358,45 @@ namespace IxMilia.Converters
             return new SvgArcToPath(radius, radius, 0.0, isLargeArc, isCounterClockwise, next.X, next.Y);
         }
 
+        private static SvgPathSegment FromPolylineVertices(DxfVertex last, DxfVertex next)
+        {
+            var dx = next.Location.X - last.Location.X;
+            var dy = next.Location.Y - last.Location.Y;
+            var dist = Math.Sqrt(dx * dx + dy * dy);
+            if (last.Bulge == 0.0 || IsCloseTo(dist, 1.0e-10))
+            {
+                // line or a really short arc
+                return new SvgLineToPath(next.Location.X, next.Location.Y);
+            }
+
+            // given the following diagram:
+            //
+            //                p1
+            //               -)
+            //            -  |  )
+            //        -      |    )
+            //    -          |     )
+            // O ------------|C----T
+            //    -          |     )
+            //        -      |    )
+            //            -  |  )
+            //               -)
+            //               p2
+            //
+            // where O is the center of the circle, C is the midpoint between p1 and p2, calculate
+            // the hypotenuse of the triangle Op1C to get the radius
+
+            var includedAngle = Math.Atan(Math.Abs(last.Bulge)) * 4.0;
+            var isLargeArc = includedAngle > Math.PI;
+            var isCounterClockwise = last.Bulge > 0.0;
+
+            // find radius
+            var oppositeLength = dist / 2.0;
+            var radius = oppositeLength / Math.Sin(includedAngle / 2.0);
+
+            return new SvgArcToPath(radius, radius, 0.0, isLargeArc, isCounterClockwise, next.Location.X, next.Location.Y);
+        }
+
         internal static SvgPath GetSvgPath(this DxfArc arc)
         {
             var startAngle = arc.StartAngle * Math.PI / 180.0;
@@ -362,6 +414,26 @@ namespace IxMilia.Converters
             var first = poly.Vertices.First();
             var segments = new List<SvgPathSegment>();
             segments.Add(new SvgMoveToPath(first.X, first.Y));
+            var last = first;
+            foreach (var next in poly.Vertices.Skip(1))
+            {
+                segments.Add(FromLwPolylineVertices(last, next));
+                last = next;
+            }
+
+            if (poly.IsClosed)
+            {
+                segments.Add(FromLwPolylineVertices(last, first));
+            }
+
+            return new SvgPath(segments);
+        }
+
+        internal static SvgPath GetSvgPath(this DxfPolyline poly)
+        {
+            var first = poly.Vertices.First();
+            var segments = new List<SvgPathSegment>();
+            segments.Add(new SvgMoveToPath(first.Location.X, first.Location.Y));
             var last = first;
             foreach (var next in poly.Vertices.Skip(1))
             {
