@@ -317,7 +317,8 @@ namespace IxMilia.Converters
             }
 
             var g = new XElement(DxfToSvgConverter.Xmlns + "g",
-                new XAttribute("class", $"dxf-insert {insert.Name}"));
+                new XAttribute("class", $"dxf-insert {insert.Name}"),
+                new XAttribute("transform", $"translate({insert.Location.X.ToDisplayString()} {insert.Location.Y.ToDisplayString()}) scale({insert.XScaleFactor.ToDisplayString()} {insert.YScaleFactor.ToDisplayString()})"));
             foreach (var blockEntity in block.Entities)
             {
                 g.Add(blockEntity.ToXElement(file));

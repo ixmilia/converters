@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 using IxMilia.Dxf;
+using IxMilia.Dxf.Blocks;
 using IxMilia.Dxf.Entities;
 using Xunit;
 
@@ -223,6 +224,32 @@ namespace IxMilia.Converters.Test
                 new XAttribute("stroke-width", "1.0px"),
                 new XAttribute("vector-effect", "non-scaling-stroke"));
             var actual = line.ToXElement();
+            AssertXElement(expected, actual);
+        }
+
+        [Fact]
+        public void RenderInsertTest()
+        {
+            var block = new DxfBlock();
+            block.Name = "some-block";
+            block.Entities.Add(new DxfLine(new DxfPoint(0.0, 0.0, 0.0), new DxfPoint(10.0, 10.0, 0.0)));
+
+            var insert = new DxfInsert();
+            insert.Name = "some-block";
+            insert.Location = new DxfPoint(0.0, 5.0, 0.0);
+
+            var file = new DxfFile();
+            file.Blocks.Add(block);
+
+            var expected = new XElement("g",
+                new XAttribute("class", "dxf-insert some-block"),
+                new XAttribute("transform", "translate(0.0 5.0) scale(1.0 1.0)"),
+                new XElement("line",
+                    new XAttribute("x1", "0.0"), new XAttribute("y1", "0.0"), new XAttribute("x2", "10.0"), new XAttribute("y2", "10.0"),
+                    new XAttribute("stroke-width", "1.0px"),
+                    new XAttribute("vector-effect", "non-scaling-stroke")));
+
+            var actual = insert.ToXElement(file);
             AssertXElement(expected, actual);
         }
 
