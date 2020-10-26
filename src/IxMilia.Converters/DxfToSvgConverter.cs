@@ -43,7 +43,7 @@ namespace IxMilia.Converters
                     new XAttribute("class", $"dxf-layer {layer.Name}"));
                 foreach (var entity in source.Entities.Where(e => e.Layer == layer.Name))
                 {
-                    var element = entity.ToXElement();
+                    var element = entity.ToXElement(source);
                     if (element != null)
                     {
                         g.Add(element);
@@ -214,7 +214,7 @@ namespace IxMilia.Converters
             return value.ToString("0.0##############", CultureInfo.InvariantCulture);
         }
 
-        public static XElement ToXElement(this DxfEntity entity)
+        public static XElement ToXElement(this DxfEntity entity, DxfFile file)
         {
             // elements are simply flattened in the z plane; the world transform in the main function handles the rest
             switch (entity)
@@ -229,6 +229,8 @@ namespace IxMilia.Converters
                     return line.ToXElement();
                 case DxfLwPolyline poly:
                     return poly.ToXElement();
+                case DxfInsert insert:
+                    return insert.ToXElement(file);
                 default:
                     return null;
             }
@@ -304,6 +306,24 @@ namespace IxMilia.Converters
                 .AddStroke(poly.Color)
                 .AddStrokeWidth(1.0)
                 .AddVectorEffect();
+        }
+
+        public static XElement ToXElement(this DxfInsert insert, DxfFile file)
+        {
+            var block = file.Blocks.FirstOrDefault(t => t.Name == insert.Name);
+            if (block == null)
+            {
+                return null;
+            }
+
+            var g = new XElement(DxfToSvgConverter.Xmlns + "g",
+                new XAttribute("class", $"dxf-insert {insert.Name}"));
+            foreach (var blockEntity in block.Entities)
+            {
+                g.Add(blockEntity.ToXElement(file));
+            }
+
+            return g;
         }
 
         private static SvgPathSegment FromPolylineVertices(DxfLwPolylineVertex last, DxfLwPolylineVertex next)
