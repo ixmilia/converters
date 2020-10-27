@@ -233,6 +233,8 @@ namespace IxMilia.Converters
                     return polyline.ToXElement();
                 case DxfInsert insert:
                     return insert.ToXElement(file);
+                case DxfSpline spline:
+                    return spline.ToXElement();
                 default:
                     return null;
             }
@@ -340,6 +342,22 @@ namespace IxMilia.Converters
             return g;
         }
 
+        public static XElement ToXElement(this DxfSpline spline)
+        {
+            var spline2 = new Spline2(
+                spline.DegreeOfCurve,
+                spline.ControlPoints.Select(p => new SplinePoint2(p.Point.X, p.Point.Y)),
+                spline.KnotValues);
+            var beziers = spline2.ToBeziers();
+            var path = beziers.GetSvgPath();
+            return new XElement(DxfToSvgConverter.Xmlns + "path",
+                new XAttribute("d", path.ToString()),
+                new XAttribute("fill-opacity", 0))
+                .AddStroke(spline.Color)
+                .AddStrokeWidth(1.0)
+                .AddVectorEffect();
+        }
+
         private static SvgPathSegment FromPolylineVertices(DxfLwPolylineVertex last, DxfLwPolylineVertex next)
         {
             return FromPolylineVertices(last.X, last.Y, last.Bulge, next.X, next.Y);
@@ -436,6 +454,26 @@ namespace IxMilia.Converters
             if (poly.IsClosed)
             {
                 segments.Add(FromPolylineVertices(last, first));
+            }
+
+            return new SvgPath(segments);
+        }
+
+        internal static SvgPath GetSvgPath(this IList<Bezier2> beziers)
+        {
+            var first = beziers[0];
+            var segments = new List<SvgPathSegment>();
+            segments.Add(new SvgMoveToPath(first.Start.X, first.Start.Y));
+            var last = first.Start;
+            foreach (var next in beziers.Skip(1))
+            {
+                if (next.Start != last)
+                {
+                    segments.Add(new SvgMoveToPath(next.Start.X, next.Start.Y));
+                }
+
+                segments.Add(new SvgCubicBezierToPath(next.Control1.X, next.Control1.Y, next.Control2.X, next.Control2.Y, next.End.X, next.End.Y));
+                last = next.End;
             }
 
             return new SvgPath(segments);
