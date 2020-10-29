@@ -112,23 +112,23 @@ namespace IxMilia.Converters
                 throw new InvalidOperationException("There must be at least one more control point than the degree of the curve.");
             }
 
+            if (_knotValues.Count < 1)
+            {
+                throw new InvalidOperationException("Minimum knot value count is 1.");
+            }
+
             if (_knotValues.Count != _controlPoints.Count + Degree + 1)
             {
                 throw new InvalidOperationException("Invalid combination of knot value count, control point count, and degree.");
             }
 
-            // knot values must be non-descending and [0.0, 1.0]
-            var lastKnotValue = 0.0;
-            foreach (var kv in _knotValues)
+            // knot values must be ascending
+            var lastKnotValue = _knotValues[0];
+            foreach (var kv in _knotValues.Skip(1))
             {
                 if (kv < lastKnotValue)
                 {
-                    throw new InvalidOperationException("Knot values must be non-descending.");
-                }
-
-                if (kv > 1.0)
-                {
-                    throw new InvalidOperationException("Knot values must be between [0.0, 1.0].");
+                    throw new InvalidOperationException($"Knot values must be ascending.  Found values {lastKnotValue} -> {kv}.");
                 }
 
                 lastKnotValue = kv;
@@ -137,11 +137,6 @@ namespace IxMilia.Converters
 
         public void InsertKnot(double t)
         {
-            if (t < 0.0 || t > 1.0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(t), "Value must be between 0.0 and 1.0.");
-            }
-
             // find the knot span that contains t
             var knotInsertionIndex = _knotValues.Count(k => k < t);
 
