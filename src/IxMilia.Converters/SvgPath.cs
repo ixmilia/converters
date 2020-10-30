@@ -174,18 +174,13 @@ namespace IxMilia.Converters
 
         public override string ToString()
         {
-            return string.Join(" ", new object[]
-            {
-                "C", // cubic bezier absolute
+            return string.Format("C {0} {1}, {2} {3}, {4} {5}",
                 ControlPoint1X.ToDisplayString(),
                 ControlPoint1Y.ToDisplayString(),
-                ",",
                 ControlPoint2X.ToDisplayString(),
                 ControlPoint2Y.ToDisplayString(),
-                ",",
                 EndLocationX.ToDisplayString(),
-                EndLocationY.ToDisplayString()
-            });
+                EndLocationY.ToDisplayString());
         }
     }
 }

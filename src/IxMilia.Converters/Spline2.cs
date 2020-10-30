@@ -183,17 +183,17 @@ namespace IxMilia.Converters
                     break;
                 }
 
-                var exepctedValue = values[0];
+                var expectedValue = values[0];
                 int missingValueCount;
                 if (values.Count < expectedIdenticalKnots)
                 {
                     // not enough values
                     missingValueCount = expectedIdenticalKnots - values.Count;
                 }
-                else if (values.Count < expectedIdenticalKnots || !values.All(v => v == exepctedValue))
+                else if (values.Count < expectedIdenticalKnots || values.Any(v => v != expectedValue))
                 {
                     // not all the same
-                    missingValueCount = expectedIdenticalKnots - values.Count(v => v == exepctedValue);
+                    missingValueCount = expectedIdenticalKnots - values.Count(v => v == expectedValue);
                 }
                 else
                 {
@@ -202,7 +202,7 @@ namespace IxMilia.Converters
 
                 for (int i = 0; i < missingValueCount; i++)
                 {
-                    result.InsertKnot(exepctedValue);
+                    result.InsertKnot(expectedValue);
                 }
             }
 
