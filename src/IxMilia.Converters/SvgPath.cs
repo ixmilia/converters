@@ -152,4 +152,35 @@ namespace IxMilia.Converters
             });
         }
     }
+
+    public class SvgCubicBezierToPath : SvgPathSegment
+    {
+        public double ControlPoint1X { get; }
+        public double ControlPoint1Y { get; }
+        public double ControlPoint2X { get; }
+        public double ControlPoint2Y { get; }
+        public double EndLocationX { get; }
+        public double EndLocationY { get; }
+
+        public SvgCubicBezierToPath(double controlPoint1X, double controlPoint1Y, double controlPoint2X, double controlPoint2Y, double endLocationX, double endLocationY)
+        {
+            ControlPoint1X = controlPoint1X;
+            ControlPoint1Y = controlPoint1Y;
+            ControlPoint2X = controlPoint2X;
+            ControlPoint2Y = controlPoint2Y;
+            EndLocationX = endLocationX;
+            EndLocationY = endLocationY;
+        }
+
+        public override string ToString()
+        {
+            return string.Format("C {0} {1}, {2} {3}, {4} {5}",
+                ControlPoint1X.ToDisplayString(),
+                ControlPoint1Y.ToDisplayString(),
+                ControlPoint2X.ToDisplayString(),
+                ControlPoint2Y.ToDisplayString(),
+                EndLocationX.ToDisplayString(),
+                EndLocationY.ToDisplayString());
+        }
+    }
 }
