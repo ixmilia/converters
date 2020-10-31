@@ -465,7 +465,7 @@ namespace IxMilia.Converters
             var segments = new List<SvgPathSegment>();
             segments.Add(new SvgMoveToPath(first.Start.X, first.Start.Y));
             var last = first.Start;
-            foreach (var next in beziers.Skip(1))
+            foreach (var next in beziers)
             {
                 if (next.Start != last)
                 {
