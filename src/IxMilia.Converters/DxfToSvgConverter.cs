@@ -267,7 +267,7 @@ namespace IxMilia.Converters
         public static XElement ToXElement(this DxfEllipse ellipse)
         {
             XElement baseShape;
-            if (IsCloseTo(ellipse.StartParameter, 0.0) && IsCloseTo(ellipse.EndParameter, Math.PI * 2.0))
+            if (ellipse.StartParameter.IsCloseTo(0.0) && ellipse.EndParameter.IsCloseTo(Math.PI * 2.0))
             {
                 baseShape = new XElement(DxfToSvgConverter.Xmlns + "ellipse",
                     new XAttribute("cx", ellipse.Center.X.ToDisplayString()),
@@ -373,7 +373,7 @@ namespace IxMilia.Converters
             var dx = nextX - lastX;
             var dy = nextY - lastY;
             var dist = Math.Sqrt(dx * dx + dy * dy);
-            if (lastBulge == 0.0 || IsCloseTo(dist, 1.0e-10))
+            if (lastBulge.IsCloseTo(0.0) || dist.IsCloseTo(1.0e-10))
             {
                 // line or a really short arc
                 return new SvgLineToPath(nextX, nextY);
@@ -508,11 +508,6 @@ namespace IxMilia.Converters
         {
             element.Add(new XAttribute("vector-effect", "non-scaling-stroke"));
             return element;
-        }
-
-        private static bool IsCloseTo(double a, double b)
-        {
-            return Math.Abs(a - b) < 1.0e-10;
         }
     }
 }
