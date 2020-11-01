@@ -1,6 +1,6 @@
 ﻿namespace IxMilia.Converters
 {
-    public struct ConverterSvgRect
+    public class ConverterSvgRect
     {
         public double Width { get; }
         public double Height { get; }
