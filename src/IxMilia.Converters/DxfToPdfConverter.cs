@@ -248,7 +248,7 @@ namespace IxMilia.Converters
                 .ToPdfPoint(PdfMeasurementType.Point);
             var p2 = affine.Transform(new Vector(next.X, next.Y, 0))
                 .ToPdfPoint(PdfMeasurementType.Point);
-            if (vertex.Bulge.Equals(0.0))
+            if (vertex.Bulge.IsCloseTo(0.0))
             {
                 return new PdfLine(p1, p2, pdfStreamState);
             }
@@ -256,7 +256,7 @@ namespace IxMilia.Converters
             double dx = next.X - vertex.X;
             double dy = next.Y - vertex.Y;
             double length = Math.Sqrt(dx * dx + dy * dy);
-            if (length <= 1e-10)
+            if (length.IsCloseTo(1e-10))
             {
                 // segment is very short, avoid numerical problems
                 return new PdfLine(p1, p2, pdfStreamState);
