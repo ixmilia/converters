@@ -13,25 +13,25 @@ namespace IxMilia.Converters
         public PdfMeasurement PageWidth { get; }
         public PdfMeasurement PageHeight { get; }
         public double Scale { get; }
-        public ConverterDxfRect? DxfSource { get; }
-        public ConverterPdfRect PdfDestination { get; }
+        public ConverterDxfRect DxfRect { get; }
+        public ConverterPdfRect PdfRect { get; }
 
         public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, double scale)
         {
             PageWidth = pageWidth;
             PageHeight = pageHeight;
             Scale = scale;
-            this.DxfSource = null;
-            this.PdfDestination = null;
+            this.DxfRect = null;
+            this.PdfRect = null;
         }
 
-        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDxfRect? dxfSource, ConverterPdfRect pdfDestination)
+        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDxfRect dxfSource, ConverterPdfRect pdfDestination)
         {
             PageWidth = pageWidth;
             PageHeight = pageHeight;
             Scale = 1d;
-            this.DxfSource = dxfSource ?? throw new ArgumentNullException(nameof(dxfSource));
-            this.PdfDestination = pdfDestination ?? throw new ArgumentNullException(nameof(pdfDestination));
+            this.DxfRect = dxfSource ?? throw new ArgumentNullException(nameof(dxfSource));
+            this.PdfRect = pdfDestination ?? throw new ArgumentNullException(nameof(pdfDestination));
         }
     }
 
@@ -78,14 +78,14 @@ namespace IxMilia.Converters
         private static void CreateTransformations(DxfViewPort viewPort, DxfToPdfConverterOptions options,
             out Matrix4 scale, out Matrix4 affine)
         {
-            if (options.DxfSource != null && options.PdfDestination != null)
+            if (options.DxfRect != null && options.PdfRect != null)
             {
                 // user supplied source and destination rectangles, no trouble with units
-                var dxfSource = options.DxfSource.GetValueOrDefault();
-                double pdfOffsetX = options.PdfDestination.Left.AsPoints();
-                double pdfOffsetY = options.PdfDestination.Bottom.AsPoints();
-                double scaleX = options.PdfDestination.Width.AsPoints() / dxfSource.Width;
-                double scaleY = options.PdfDestination.Height.AsPoints() / dxfSource.Height;
+                var dxfSource = options.DxfRect.GetValueOrDefault();
+                double pdfOffsetX = options.PdfRect.Left.AsPoints();
+                double pdfOffsetY = options.PdfRect.Bottom.AsPoints();
+                double scaleX = options.PdfRect.Width.AsPoints() / dxfSource.Width;
+                double scaleY = options.PdfRect.Height.AsPoints() / dxfSource.Height;
                 double dxfOffsetX = dxfSource.Left;
                 double dxfOffsetY = dxfSource.Bottom;
                 scale = Matrix4.CreateScale(scaleX, scaleY, 0.0);
