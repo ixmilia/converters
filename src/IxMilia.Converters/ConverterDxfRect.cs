@@ -12,6 +12,14 @@ namespace IxMilia.Converters
         public double Width => this.Right - this.Left;
         public double Height => this.Top - this.Bottom;
 
+        public ConverterDxfRect()
+        {
+            Left = 0;
+            Right = 0;
+            Bottom = 0;
+            Top = 0;
+        }
+
         public ConverterDxfRect(double left, double right, double bottom, double top)
         {
             if (left >= right)
