@@ -81,12 +81,12 @@ namespace IxMilia.Converters
                                 new XAttribute("transform", $"translate({(-options.DxfRect.Left).ToDisplayString()} {(-options.DxfRect.Bottom).ToDisplayString()})"),
                                 world)))));
 
-            var layerNames = file.Layers.OrderBy(l => l.Name).Select(l => l.Name).ToArray();
-            root = TransformToHtmlDiv(root, options.SvgId, layerNames, -options.DxfSource.Left, -options.DxfSource.Bottom, scale, scale);
+            var layerNames = file.Layers.OrderBy(l => l.Name).Select(l => l.Name);
+            root = TransformToHtmlDiv(root, options.SvgId, layerNames, -options.DxfRect.Left, -options.DxfRect.Bottom, scale, scale);
             return root;
         }
 
-        private static XElement TransformToHtmlDiv(XElement svg, string svgId, string[] layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
+        private static XElement TransformToHtmlDiv(XElement svg, string svgId, IEnumerable<string> layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
         {
             if (string.IsNullOrWhiteSpace(svgId))
             {
@@ -131,7 +131,7 @@ namespace IxMilia.Converters
             return div;
         }
 
-        private static string GetJavascriptControls(string svgId, string[] layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
+        private static string GetJavascriptControls(string svgId, IEnumerable<string> layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
         {
             var assembly = typeof(DxfToSvgConverter).GetTypeInfo().Assembly;
             using (var jsStream = assembly.GetManifestResourceStream("IxMilia.Converters.SvgJavascriptControls.js"))
