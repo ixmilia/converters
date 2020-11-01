@@ -81,13 +81,13 @@ namespace IxMilia.Converters
             if (options.DxfRect != null && options.PdfRect != null)
             {
                 // user supplied source and destination rectangles, no trouble with units
-                var dxfSource = options.DxfRect.GetValueOrDefault();
+                var dxfRect = options.DxfRect;
                 double pdfOffsetX = options.PdfRect.Left.AsPoints();
                 double pdfOffsetY = options.PdfRect.Bottom.AsPoints();
-                double scaleX = options.PdfRect.Width.AsPoints() / dxfSource.Width;
-                double scaleY = options.PdfRect.Height.AsPoints() / dxfSource.Height;
-                double dxfOffsetX = dxfSource.Left;
-                double dxfOffsetY = dxfSource.Bottom;
+                double scaleX = options.PdfRect.Width.AsPoints() / dxfRect.Width;
+                double scaleY = options.PdfRect.Height.AsPoints() / dxfRect.Height;
+                double dxfOffsetX = dxfRect.Left;
+                double dxfOffsetY = dxfRect.Bottom;
                 scale = Matrix4.CreateScale(scaleX, scaleY, 0.0);
                 affine = Matrix4.CreateTranslate(+pdfOffsetX, +pdfOffsetY, 0.0)
                     * scale

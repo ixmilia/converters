@@ -424,7 +424,7 @@ namespace IxMilia.Converters.Test
         public void EnsureValidShapeAsBareSvg()
         {
             // svg starts with 5 levels of `g`
-            var element = new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect()));
+            var element = new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(0, 0, 0, 0), new ConverterSvgRect(0, 0)));
             Assert.Equal("svg", element.Name.LocalName);
             var g = element.Elements().Single();
             for (int i = 0; i < 5; i++)
@@ -437,7 +437,7 @@ namespace IxMilia.Converters.Test
         [Fact]
         public void EnsureValidShapeAsDiv()
         {
-            var element = new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect(), svgId: "test-id"));
+            var element = new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(0, 0, 0, 0), new ConverterSvgRect(0, 0), svgId: "test-id"));
             Assert.Equal("div", element.Name.LocalName);
             Assert.Equal("test-id", element.Attribute("id").Value);
             var children = element.Elements().ToList();
