@@ -32,25 +32,25 @@ namespace IxMilia.Converters
         public XElement Convert(DxfFile file, DxfToSvgConverterOptions options)
         {
             // adapted from https://github.com/ixmilia/bcad/blob/main/src/IxMilia.BCad.FileHandlers/Plotting/Svg/SvgPlotter.cs
-            var world = new XElement(Xmlns + "g");
-            foreach (var layer in file.Layers.OrderBy(l => l.Name))
+            var worldGroup = new XElement(Xmlns + "g");
+            foreach (var layer in file.Layers.OrderBy(layer => layer.Name))
             {
                 var autoColor = DxfColor.FromIndex(0);
-                world.Add(new XComment($" layer '{layer.Name}' "));
-                var g = new XElement(Xmlns + "g",
+                worldGroup.Add(new XComment($" layer '{layer.Name}' "));
+                var layerGroup = new XElement(Xmlns + "g",
                     new XAttribute("stroke", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("fill", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("class", $"dxf-layer {layer.Name}"));
-                foreach (var entity in file.Entities.Where(e => e.Layer == layer.Name))
+                foreach (var entity in file.Entities.Where(entity => entity.Layer == layer.Name))
                 {
                     var element = entity.ToXElement(file);
                     if (element != null)
                     {
-                        g.Add(element);
+                        layerGroup.Add(element);
                     }
                 }
 
-                world.Add(g);
+                worldGroup.Add(layerGroup);
             }
 
             var dxfAspectRatio = options.DxfRect.Width / options.DxfRect.Height;
@@ -79,9 +79,9 @@ namespace IxMilia.Converters
                             new XComment(" this group handles initial translation offset "),
                             new XElement(Xmlns + "g",
                                 new XAttribute("transform", $"translate({(-options.DxfRect.Left).ToDisplayString()} {(-options.DxfRect.Bottom).ToDisplayString()})"),
-                                world)))));
+                                worldGroup)))));
 
-            var layerNames = file.Layers.OrderBy(l => l.Name).Select(l => l.Name);
+            var layerNames = file.Layers.OrderBy(layer => layer.Name).Select(layer => layer.Name);
             root = TransformToHtmlDiv(root, options.SvgId, layerNames, -options.DxfRect.Left, -options.DxfRect.Bottom, scale, scale);
             return root;
         }
@@ -140,7 +140,7 @@ namespace IxMilia.Converters
                 var contents = Environment.NewLine + streamReader.ReadToEnd();
                 contents = contents
                     .Replace("$DRAWING-ID$", svgId)
-                    .Replace("$LAYER-NAMES$", $"[{string.Join(", ", layerNames.Select(l => $"\"{l}\""))}]")
+                    .Replace("$LAYER-NAMES$", $"[{string.Join(", ", layerNames.Select(layer => $"\"{layer}\""))}]")
                     .Replace("$DEFAULT-X-TRANSLATE$", defaultXTranslate.ToDisplayString())
                     .Replace("$DEFAULT-Y-TRANSLATE$", defaultYTranslate.ToDisplayString())
                     .Replace("$DEFAULT-X-SCALE$", defaultXScale.ToDisplayString())
