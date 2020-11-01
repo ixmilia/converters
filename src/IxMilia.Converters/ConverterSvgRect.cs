@@ -2,13 +2,13 @@
 {
     public struct ConverterSvgRect
     {
-        public double ElementWidth { get; }
-        public double ElementHeight { get; }
+        public double Width { get; }
+        public double Height { get; }
 
-        public ConverterSvgRect(double elementWidth, double elementHeight)
+        public ConverterSvgRect(double width, double height)
         {
-            ElementWidth = elementWidth;
-            ElementHeight = elementHeight;
+            Width = width;
+            Height = height;
         }
     }
 }

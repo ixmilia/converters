@@ -13,14 +13,14 @@ namespace IxMilia.Converters
 {
     public struct DxfToSvgConverterOptions
     {
-        public ConverterDxfRect DxfSource { get; }
-        public ConverterSvgRect SvgDestination { get; }
+        public ConverterDxfRect DxfRect { get; }
+        public ConverterSvgRect SvgRect { get; }
         public string SvgId { get; }
 
-        public DxfToSvgConverterOptions(ConverterDxfRect dxfSource, ConverterSvgRect svgDestination, string svgId = null)
+        public DxfToSvgConverterOptions(ConverterDxfRect dxfRect, ConverterSvgRect svgRect, string svgId = null)
         {
-            DxfSource = dxfSource;
-            SvgDestination = svgDestination;
+            DxfRect = dxfRect;
+            SvgRect = svgRect;
             SvgId = svgId;
         }
     }
@@ -53,21 +53,21 @@ namespace IxMilia.Converters
                 world.Add(g);
             }
 
-            var dxfar = options.DxfSource.Width / options.DxfSource.Height;
-            var svgar = options.SvgDestination.ElementWidth / options.SvgDestination.ElementHeight;
-            var scale = svgar < dxfar
-                ? options.SvgDestination.ElementWidth / options.DxfSource.Width
-                : options.SvgDestination.ElementHeight / options.DxfSource.Height;
+            var dxfAspectRatio = options.DxfRect.Width / options.DxfRect.Height;
+            var svgAspectRatio = options.SvgRect.Width / options.SvgRect.Height;
+            var scale = svgAspectRatio < dxfAspectRatio
+                ? options.SvgRect.Width / options.DxfRect.Width
+                : options.SvgRect.Height / options.DxfRect.Height;
 
             var root = new XElement(Xmlns + "svg",
-                new XAttribute("width", options.SvgDestination.ElementWidth.ToDisplayString()),
-                new XAttribute("height", options.SvgDestination.ElementHeight.ToDisplayString()),
-                new XAttribute("viewBox", $"0 0 {options.SvgDestination.ElementWidth.ToDisplayString()} {options.SvgDestination.ElementHeight.ToDisplayString()}"),
+                new XAttribute("width", options.SvgRect.Width.ToDisplayString()),
+                new XAttribute("height", options.SvgRect.Height.ToDisplayString()),
+                new XAttribute("viewBox", $"0 0 {options.SvgRect.Width.ToDisplayString()} {options.SvgRect.Height.ToDisplayString()}"),
                 new XAttribute("version", "1.1"),
                 new XAttribute("class", "dxf-drawing"),
                 new XComment(" this group corrects for the y-axis going in different directions "),
                 new XElement(Xmlns + "g",
-                    new XAttribute("transform", $"translate(0 {options.SvgDestination.ElementHeight.ToDisplayString()}) scale(1 -1)"),
+                    new XAttribute("transform", $"translate(0 {options.SvgRect.Height.ToDisplayString()}) scale(1 -1)"),
                     new XComment(" this group handles display panning "),
                     new XElement(Xmlns + "g",
                         new XAttribute("transform", "translate(0 0)"),
@@ -78,7 +78,7 @@ namespace IxMilia.Converters
                             new XAttribute("class", "svg-scale"),
                             new XComment(" this group handles initial translation offset "),
                             new XElement(Xmlns + "g",
-                                new XAttribute("transform", $"translate({(-options.DxfSource.Left).ToDisplayString()} {(-options.DxfSource.Bottom).ToDisplayString()})"),
+                                new XAttribute("transform", $"translate({(-options.DxfRect.Left).ToDisplayString()} {(-options.DxfRect.Bottom).ToDisplayString()})"),
                                 world)))));
 
             var layerNames = file.Layers.OrderBy(l => l.Name).Select(l => l.Name).ToArray();
