@@ -483,16 +483,8 @@ namespace IxMilia.Converters
         {
             if (color.IsIndex)
             {
-                var stroke = element.Attribute("stroke");
                 var colorString = color.ToRGBString();
-                if (stroke == null)
-                {
-                    element.Add(new XAttribute("stroke", colorString));
-                }
-                else
-                {
-                    stroke.Value = colorString;
-                }
+                element.SetAttributeValue("stroke", colorString);
             }
 
             return element;
