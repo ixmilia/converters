@@ -13,14 +13,14 @@ namespace IxMilia.Converters
 {
     public struct DxfToSvgConverterOptions
     {
-        public ConverterDxfRect DxfSource { get; }
-        public ConverterSvgRect SvgDestination { get; }
+        public ConverterDxfRect DxfRect { get; }
+        public ConverterSvgRect SvgRect { get; }
         public string SvgId { get; }
 
-        public DxfToSvgConverterOptions(ConverterDxfRect dxfSource, ConverterSvgRect svgDestination, string svgId = null)
+        public DxfToSvgConverterOptions(ConverterDxfRect dxfRect, ConverterSvgRect svgRect, string svgId = null)
         {
-            DxfSource = dxfSource;
-            SvgDestination = svgDestination;
+            DxfRect = dxfRect;
+            SvgRect = svgRect;
             SvgId = svgId;
         }
     }
@@ -32,42 +32,42 @@ namespace IxMilia.Converters
         public XElement Convert(DxfFile file, DxfToSvgConverterOptions options)
         {
             // adapted from https://github.com/ixmilia/bcad/blob/main/src/IxMilia.BCad.FileHandlers/Plotting/Svg/SvgPlotter.cs
-            var world = new XElement(Xmlns + "g");
-            foreach (var layer in file.Layers.OrderBy(l => l.Name))
+            var worldGroup = new XElement(Xmlns + "g");
+            foreach (var layer in file.Layers.OrderBy(layer => layer.Name))
             {
                 var autoColor = DxfColor.FromIndex(0);
-                world.Add(new XComment($" layer '{layer.Name}' "));
-                var g = new XElement(Xmlns + "g",
+                worldGroup.Add(new XComment($" layer '{layer.Name}' "));
+                var layerGroup = new XElement(Xmlns + "g",
                     new XAttribute("stroke", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("fill", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("class", $"dxf-layer {layer.Name}"));
-                foreach (var entity in file.Entities.Where(e => e.Layer == layer.Name))
+                foreach (var entity in file.Entities.Where(entity => entity.Layer == layer.Name))
                 {
                     var element = entity.ToXElement(file);
                     if (element != null)
                     {
-                        g.Add(element);
+                        layerGroup.Add(element);
                     }
                 }
 
-                world.Add(g);
+                worldGroup.Add(layerGroup);
             }
 
-            var dxfar = options.DxfSource.Width / options.DxfSource.Height;
-            var svgar = options.SvgDestination.ElementWidth / options.SvgDestination.ElementHeight;
-            var scale = svgar < dxfar
-                ? options.SvgDestination.ElementWidth / options.DxfSource.Width
-                : options.SvgDestination.ElementHeight / options.DxfSource.Height;
+            var dxfAspectRatio = options.DxfRect.Width / options.DxfRect.Height;
+            var svgAspectRatio = options.SvgRect.Width / options.SvgRect.Height;
+            var scale = svgAspectRatio < dxfAspectRatio
+                ? options.SvgRect.Width / options.DxfRect.Width
+                : options.SvgRect.Height / options.DxfRect.Height;
 
             var root = new XElement(Xmlns + "svg",
-                new XAttribute("width", options.SvgDestination.ElementWidth.ToDisplayString()),
-                new XAttribute("height", options.SvgDestination.ElementHeight.ToDisplayString()),
-                new XAttribute("viewBox", $"0 0 {options.SvgDestination.ElementWidth.ToDisplayString()} {options.SvgDestination.ElementHeight.ToDisplayString()}"),
+                new XAttribute("width", options.SvgRect.Width.ToDisplayString()),
+                new XAttribute("height", options.SvgRect.Height.ToDisplayString()),
+                new XAttribute("viewBox", $"0 0 {options.SvgRect.Width.ToDisplayString()} {options.SvgRect.Height.ToDisplayString()}"),
                 new XAttribute("version", "1.1"),
                 new XAttribute("class", "dxf-drawing"),
                 new XComment(" this group corrects for the y-axis going in different directions "),
                 new XElement(Xmlns + "g",
-                    new XAttribute("transform", $"translate(0 {options.SvgDestination.ElementHeight.ToDisplayString()}) scale(1 -1)"),
+                    new XAttribute("transform", $"translate(0 {options.SvgRect.Height.ToDisplayString()}) scale(1 -1)"),
                     new XComment(" this group handles display panning "),
                     new XElement(Xmlns + "g",
                         new XAttribute("transform", "translate(0 0)"),
@@ -78,15 +78,15 @@ namespace IxMilia.Converters
                             new XAttribute("class", "svg-scale"),
                             new XComment(" this group handles initial translation offset "),
                             new XElement(Xmlns + "g",
-                                new XAttribute("transform", $"translate({(-options.DxfSource.Left).ToDisplayString()} {(-options.DxfSource.Bottom).ToDisplayString()})"),
-                                world)))));
+                                new XAttribute("transform", $"translate({(-options.DxfRect.Left).ToDisplayString()} {(-options.DxfRect.Bottom).ToDisplayString()})"),
+                                worldGroup)))));
 
-            var layerNames = file.Layers.OrderBy(l => l.Name).Select(l => l.Name).ToArray();
-            root = TransformToHtmlDiv(root, options.SvgId, layerNames, -options.DxfSource.Left, -options.DxfSource.Bottom, scale, scale);
+            var layerNames = file.Layers.OrderBy(layer => layer.Name).Select(layer => layer.Name);
+            root = TransformToHtmlDiv(root, options.SvgId, layerNames, -options.DxfRect.Left, -options.DxfRect.Bottom, scale, scale);
             return root;
         }
 
-        private static XElement TransformToHtmlDiv(XElement svg, string svgId, string[] layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
+        private static XElement TransformToHtmlDiv(XElement svg, string svgId, IEnumerable<string> layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
         {
             if (string.IsNullOrWhiteSpace(svgId))
             {
@@ -131,7 +131,7 @@ namespace IxMilia.Converters
             return div;
         }
 
-        private static string GetJavascriptControls(string svgId, string[] layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
+        private static string GetJavascriptControls(string svgId, IEnumerable<string> layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
         {
             var assembly = typeof(DxfToSvgConverter).GetTypeInfo().Assembly;
             using (var jsStream = assembly.GetManifestResourceStream("IxMilia.Converters.SvgJavascriptControls.js"))
@@ -140,7 +140,7 @@ namespace IxMilia.Converters
                 var contents = Environment.NewLine + streamReader.ReadToEnd();
                 contents = contents
                     .Replace("$DRAWING-ID$", svgId)
-                    .Replace("$LAYER-NAMES$", $"[{string.Join(", ", layerNames.Select(l => $"\"{l}\""))}]")
+                    .Replace("$LAYER-NAMES$", $"[{string.Join(", ", layerNames.Select(layer => $"\"{layer}\""))}]")
                     .Replace("$DEFAULT-X-TRANSLATE$", defaultXTranslate.ToDisplayString())
                     .Replace("$DEFAULT-Y-TRANSLATE$", defaultYTranslate.ToDisplayString())
                     .Replace("$DEFAULT-X-SCALE$", defaultXScale.ToDisplayString())
@@ -267,7 +267,7 @@ namespace IxMilia.Converters
         public static XElement ToXElement(this DxfEllipse ellipse)
         {
             XElement baseShape;
-            if (IsCloseTo(ellipse.StartParameter, 0.0) && IsCloseTo(ellipse.EndParameter, Math.PI * 2.0))
+            if (ellipse.StartParameter.IsCloseTo(0.0) && ellipse.EndParameter.IsCloseTo(Math.PI * 2.0))
             {
                 baseShape = new XElement(DxfToSvgConverter.Xmlns + "ellipse",
                     new XAttribute("cx", ellipse.Center.X.ToDisplayString()),
@@ -373,7 +373,7 @@ namespace IxMilia.Converters
             var dx = nextX - lastX;
             var dy = nextY - lastY;
             var dist = Math.Sqrt(dx * dx + dy * dy);
-            if (lastBulge == 0.0 || IsCloseTo(dist, 1.0e-10))
+            if (lastBulge.IsCloseTo(0.0) || dist.IsCloseTo(1.0e-10))
             {
                 // line or a really short arc
                 return new SvgLineToPath(nextX, nextY);
@@ -483,16 +483,8 @@ namespace IxMilia.Converters
         {
             if (color.IsIndex)
             {
-                var stroke = element.Attribute("stroke");
                 var colorString = color.ToRGBString();
-                if (stroke == null)
-                {
-                    element.Add(new XAttribute("stroke", colorString));
-                }
-                else
-                {
-                    stroke.Value = colorString;
-                }
+                element.SetAttributeValue("stroke", colorString);
             }
 
             return element;
@@ -508,11 +500,6 @@ namespace IxMilia.Converters
         {
             element.Add(new XAttribute("vector-effect", "non-scaling-stroke"));
             return element;
-        }
-
-        private static bool IsCloseTo(double a, double b)
-        {
-            return Math.Abs(a - b) < 1.0e-10;
         }
     }
 }

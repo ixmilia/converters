@@ -1,14 +1,20 @@
 ﻿namespace IxMilia.Converters
 {
-    public struct ConverterSvgRect
+    public class ConverterSvgRect
     {
-        public double ElementWidth { get; }
-        public double ElementHeight { get; }
+        public double Width { get; }
+        public double Height { get; }
 
-        public ConverterSvgRect(double elementWidth, double elementHeight)
+        public ConverterSvgRect()
         {
-            ElementWidth = elementWidth;
-            ElementHeight = elementHeight;
+            Width = 0;
+            Height = 0;
+        }
+
+        public ConverterSvgRect(double width, double height)
+        {
+            Width = width;
+            Height = height;
         }
     }
 }

@@ -39,6 +39,14 @@ namespace IxMilia.Converters
         public PdfMeasurement Width => new PdfMeasurement(this.Right.AsPoints() - this.Left.AsPoints(), PdfMeasurementType.Point);
         public PdfMeasurement Height => new PdfMeasurement(this.Top.AsPoints() - this.Bottom.AsPoints(), PdfMeasurementType.Point);
 
+        public ConverterPdfRect()
+        {
+            Left = PdfMeasurement.Zero;
+            Right = PdfMeasurement.Zero;
+            Bottom = PdfMeasurement.Zero;
+            Top = PdfMeasurement.Zero;
+        }
+
         public ConverterPdfRect(PdfMeasurement left, PdfMeasurement right, PdfMeasurement bottom, PdfMeasurement top)
         {
             if (left.AsPoints() >= right.AsPoints())
