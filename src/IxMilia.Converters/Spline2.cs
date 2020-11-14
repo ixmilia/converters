@@ -22,7 +22,7 @@ namespace IxMilia.Converters
 
         public static bool operator ==(SplinePoint2 a, SplinePoint2 b)
         {
-            return a.X.IsCloseTo(b.X) && a.Y.IsCloseTo(b.Y);
+            return a.X == b.X && a.Y == b.Y;
         }
 
         public static bool operator !=(SplinePoint2 a, SplinePoint2 b)
@@ -43,8 +43,7 @@ namespace IxMilia.Converters
         public override bool Equals(object obj)
         {
             return obj is SplinePoint2 point &&
-                   X.IsCloseTo(point.X) &&
-                   Y.IsCloseTo(point.Y);
+                this == point;
         }
 
         public override int GetHashCode()
