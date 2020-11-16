@@ -43,7 +43,7 @@ namespace IxMilia.Converters
                     new XAttribute("class", $"dxf-layer {layer.Name}"));
                 foreach (var entity in file.Entities.Where(entity => entity.Layer == layer.Name))
                 {
-                    var element = entity.ToXElement(file);
+                    var element = entity.ToXElement();
                     if (element != null)
                     {
                         layerGroup.Add(element);
@@ -214,7 +214,7 @@ namespace IxMilia.Converters
             return value.ToString("0.0##############", CultureInfo.InvariantCulture);
         }
 
-        public static XElement ToXElement(this DxfEntity entity, DxfFile file)
+        public static XElement ToXElement(this DxfEntity entity)
         {
             // elements are simply flattened in the z plane; the world transform in the main function handles the rest
             switch (entity)
@@ -232,7 +232,7 @@ namespace IxMilia.Converters
                 case DxfPolyline polyline:
                     return polyline.ToXElement();
                 case DxfInsert insert:
-                    return insert.ToXElement(file);
+                    return insert.ToXElement();
                 case DxfSpline spline:
                     return spline.ToXElement();
                 default:
@@ -323,20 +323,14 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
-        public static XElement ToXElement(this DxfInsert insert, DxfFile file)
+        public static XElement ToXElement(this DxfInsert insert)
         {
-            var block = file.Blocks.FirstOrDefault(t => t.Name == insert.Name);
-            if (block == null)
-            {
-                return null;
-            }
-
             var g = new XElement(DxfToSvgConverter.Xmlns + "g",
                 new XAttribute("class", $"dxf-insert {insert.Name}"),
                 new XAttribute("transform", $"translate({insert.Location.X.ToDisplayString()} {insert.Location.Y.ToDisplayString()}) scale({insert.XScaleFactor.ToDisplayString()} {insert.YScaleFactor.ToDisplayString()})"));
-            foreach (var blockEntity in block.Entities)
+            foreach (var blockEntity in insert.Entities)
             {
-                g.Add(blockEntity.ToXElement(file));
+                g.Add(blockEntity.ToXElement());
             }
 
             return g;

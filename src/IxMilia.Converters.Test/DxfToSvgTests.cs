@@ -240,6 +240,7 @@ namespace IxMilia.Converters.Test
 
             var file = new DxfFile();
             file.Blocks.Add(block);
+            file.Entities.Add(insert);
 
             var expected = new XElement("g",
                 new XAttribute("class", "dxf-insert some-block"),
@@ -249,7 +250,7 @@ namespace IxMilia.Converters.Test
                     new XAttribute("stroke-width", "1.0px"),
                     new XAttribute("vector-effect", "non-scaling-stroke")));
 
-            var actual = insert.ToXElement(file);
+            var actual = insert.ToXElement();
             AssertXElement(expected, actual);
         }
 

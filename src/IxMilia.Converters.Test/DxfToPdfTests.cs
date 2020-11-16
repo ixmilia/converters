@@ -56,7 +56,7 @@ endstream".Trim());
         public void SimpleLineTest()
         {
             var dxf = new DxfFile();
-            dxf.ActiveViewPort = new DxfViewPort()
+            dxf.ActiveViewPort = new DxfViewPort("viewport-name")
             {
                 LowerLeft = new DxfPoint(0.0, 0.0, 0.0),
                 ViewHeight = 11.0,
