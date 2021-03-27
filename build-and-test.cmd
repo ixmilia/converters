@@ -28,10 +28,6 @@ goto parseargs
 
 :argsdone
 
-:: IxMilia.Dxf needs a custom invocation to generate code
-call %~dp0src\IxMilia.Dxf\build-and-test.cmd -notest -c %configuration%
-if errorlevel 1 echo Error pre-building IxMilia.Dxf && exit /b 1
-
 :: build
 set SOLUTION=%~dp0IxMilia.Converters.sln
 dotnet restore %SOLUTION%
