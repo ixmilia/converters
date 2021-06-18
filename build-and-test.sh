@@ -31,3 +31,12 @@ dotnet build $SOLUTION -c $CONFIGURATION
 if [ "$RUNTESTS" = "true" ]; then
     dotnet test $SOLUTION -c $CONFIGURATION --no-restore --no-build
 fi
+
+# create packages
+dotnet pack --no-restore --no-build --configuration $CONFIGURATION
+PACKAGE_DIR="$_SCRIPT_DIR/artifacts/packages/$CONFIGURATION"
+PACKAGE_COUNT=$(ls "$PACKAGE_DIR"/*.nupkg | wc -l)
+if [ "$PACKAGE_COUNT" -ne "1" ]; then
+  echo "Expected a single NuGet package but found $PACKAGE_COUNT at '$PACKAGE_DIR'"
+  exit 1
+fi

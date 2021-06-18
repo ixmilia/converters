@@ -40,3 +40,14 @@ if /i "%runtests%" == "true" (
     dotnet test "%SOLUTION%" -c %configuration% --no-restore --no-build
     if errorlevel 1 goto error
 )
+
+dotnet pack --no-restore --no-build --configuration %configuration%
+set PACKAGE_COUNT=0
+for %%a in ("%thisdir%artifacts\packages\%configuration%\*.nupkg") do set /a PACKAGE_COUNT+=1
+if not "%PACKAGE_COUNT%" == "1" echo Expected a single NuGet package but found %PACKAGE_COUNT% at '%thisdir%artifacts\packages\%configuration%' && goto error
+
+goto :eof
+
+:error
+echo Error building project.
+exit /b 1

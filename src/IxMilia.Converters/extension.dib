@@ -1,0 +1,9 @@
+#!csharp
+
+Microsoft.DotNet.Interactive.Formatting.Formatter.Register<IxMilia.Dxf.DxfFile>((dxf, writer) =>
+{
+    var dxfRect = new IxMilia.Converters.ConverterDxfRect(dxf.GetBoundingBox());
+    var options = new IxMilia.Converters.DxfToSvgConverterOptions(dxfRect, new IxMilia.Converters.ConverterSvgRect(800, 600), svgId: Guid.NewGuid().ToString());
+    var document = new IxMilia.Converters.DxfToSvgConverter().Convert(dxf, options);
+    writer.Write(document.ToString());
+}, "text/html");
