@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using IxMilia.Dxf;
 using IxMilia.Dxf.Entities;
@@ -96,6 +98,98 @@ stream
 0 0 0 rg
 100.00 300.00 m
 200.00 400.00 l
+S
+endstream".Trim());
+            Assert.Contains(expected, pdf);
+        }
+
+        [Fact]
+        public void RenderClosedLwPolylineTest()
+        {
+            //   2,2 D
+            //    ------------- 3,2 C
+            //  /             |
+            // |             /
+            // ____________-
+            // 1,1      2,1
+            //  A        B
+            var bulge90Degrees = Math.Sqrt(2.0) - 1.0;
+            var vertices = new List<DxfLwPolylineVertex>()
+            {
+                new DxfLwPolylineVertex() { X = 1.0, Y = 1.0 }, // A
+                new DxfLwPolylineVertex() { X = 2.0, Y = 1.0, Bulge = bulge90Degrees }, // B
+                new DxfLwPolylineVertex() { X = 3.0, Y = 2.0 }, // C
+                new DxfLwPolylineVertex() { X = 2.0, Y = 2.0, Bulge = bulge90Degrees } // D
+            };
+            var poly = new DxfLwPolyline(vertices);
+            poly.IsClosed = true;
+            var dxf = new DxfFile();
+            dxf.Entities.Add(poly);
+
+            var pdf = ConvertToString(dxf);
+            var expected = NormalizeCrLf(@"
+stream
+0 w
+0 0 0 RG
+0 0 0 rg
+72.00 72.00 m
+144.00 72.00 l
+216.00 144.00 m
+216.00 144.00 216.00 144.00 216.00 144.00 c
+144.00 72.00 m
+183.76 72.00 216.00 104.24 216.00 144.00 c
+216.00 144.00 m
+144.00 144.00 l
+144.00 144.00 m
+144.00 144.00 144.00 144.00 144.00 144.00 c
+144.00 144.00 m
+104.24 144.00 72.00 111.76 72.00 72.00 c
+S
+endstream".Trim());
+            Assert.Contains(expected, pdf);
+        }
+
+        [Fact]
+        public void RenderClosedPolylineTest()
+        {
+            //   2,2 D
+            //    ------------- 3,2 C
+            //  /             |
+            // |             /
+            // ____________-
+            // 1,1      2,1
+            //  A        B
+            var bulge90Degrees = Math.Sqrt(2.0) - 1.0;
+            var vertices = new List<DxfVertex>()
+            {
+                new DxfVertex(new DxfPoint(1.0, 1.0, 0.0)), // A
+                new DxfVertex(new DxfPoint(2.0, 1.0, 0.0)) { Bulge = bulge90Degrees }, // B
+                new DxfVertex(new DxfPoint(3.0, 2.0, 0.0)), // C
+                new DxfVertex(new DxfPoint(2.0, 2.0, 0.0)) { Bulge = bulge90Degrees } // D
+            };
+            var poly = new DxfPolyline(vertices);
+            poly.IsClosed = true;
+            var dxf = new DxfFile();
+            dxf.Entities.Add(poly);
+
+            var pdf = ConvertToString(dxf);
+            var expected = NormalizeCrLf(@"
+stream
+0 w
+0 0 0 RG
+0 0 0 rg
+72.00 72.00 m
+144.00 72.00 l
+216.00 144.00 m
+216.00 144.00 216.00 144.00 216.00 144.00 c
+144.00 72.00 m
+183.76 72.00 216.00 104.24 216.00 144.00 c
+216.00 144.00 m
+144.00 144.00 l
+144.00 144.00 m
+144.00 144.00 144.00 144.00 144.00 144.00 c
+144.00 144.00 m
+104.24 144.00 72.00 111.76 72.00 72.00 c
 S
 endstream".Trim());
             Assert.Contains(expected, pdf);

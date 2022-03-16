@@ -22,6 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="IxMilia.Converters.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\IxMilia.Dxf\src\IxMilia.Dxf\IxMilia.Dxf.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\IxMilia.Pdf\src\IxMilia.Pdf\IxMilia.Pdf.csproj" PrivateAssets="all" />
   </ItemGroup>

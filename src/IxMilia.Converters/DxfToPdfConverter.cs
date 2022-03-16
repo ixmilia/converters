@@ -106,7 +106,7 @@ namespace IxMilia.Converters
         #region Entity Conversions
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool TryConvertEntity(DxfEntity entity, DxfLayer layer, Matrix4 affine, Matrix4 scale, PdfPathBuilder builder, PdfPage page)
+        internal static bool TryConvertEntity(DxfEntity entity, DxfLayer layer, Matrix4 affine, Matrix4 scale, PdfPathBuilder builder, PdfPage page)
         {
             switch (entity)
             {
@@ -226,6 +226,7 @@ namespace IxMilia.Converters
             IList<DxfLwPolylineVertex> vertices = lwPolyline.Vertices;
             int n = vertices.Count;
             DxfLwPolylineVertex vertex = vertices[0];
+
             for (int i = 1; i < n; i++)
             {
                 DxfLwPolylineVertex next = vertices[i];
@@ -235,11 +236,7 @@ namespace IxMilia.Converters
             if (lwPolyline.IsClosed)
             {
                 var next = vertices[0];
-                var p1 = affine.Transform(new Vector(vertex.X, vertex.Y, 0))
-                    .ToPdfPoint(PdfMeasurementType.Point);
-                var p2 = affine.Transform(new Vector(next.X, next.Y, 0))
-                    .ToPdfPoint(PdfMeasurementType.Point);
-                yield return new PdfLine(p1, p2, pdfStreamState);
+                yield return ConvertLwPolylineSegment(vertex, next, affine, scale, pdfStreamState);
             }
         }
         
@@ -314,11 +311,7 @@ namespace IxMilia.Converters
             if (polyline.IsClosed)
             {
                 var next = vertices[0];
-                var p1 = affine.Transform(new Vector(vertex.Location.X, vertex.Location.Y, 0))
-                    .ToPdfPoint(PdfMeasurementType.Point);
-                var p2 = affine.Transform(new Vector(next.Location.X, next.Location.Y, 0))
-                    .ToPdfPoint(PdfMeasurementType.Point);
-                yield return new PdfLine(p1, p2, pdfStreamState);
+                yield return ConvertPolylineSegment(vertex, next, affine, scale, pdfStreamState);
             }
         }
 
