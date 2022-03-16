@@ -127,7 +127,10 @@ namespace IxMilia.Converters
                     Add(ConvertCircle(circle, layer, affine, scale), builder);
                     return true;
                 case DxfLwPolyline lwPolyline:
-                    Add(ConvertPolyline(lwPolyline, layer, affine, scale), builder);
+                    Add(ConvertLwPolyline(lwPolyline, layer, affine, scale), builder);
+                    return true;
+                case DxfPolyline polyline:
+                    Add(ConvertPolyline(polyline, layer, affine, scale), builder);
                     return true;
                 default:
                     return false;
@@ -214,7 +217,7 @@ namespace IxMilia.Converters
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertPolyline(DxfLwPolyline lwPolyline, DxfLayer layer, 
+        private static IEnumerable<IPdfPathItem> ConvertLwPolyline(DxfLwPolyline lwPolyline, DxfLayer layer, 
             Matrix4 affine, Matrix4 scale)
         {
             var pdfStreamState = new PdfStreamState(
@@ -226,7 +229,7 @@ namespace IxMilia.Converters
             for (int i = 1; i < n; i++)
             {
                 DxfLwPolylineVertex next = vertices[i];
-                yield return ConvertPolylineSegment(vertex, next, affine, scale, pdfStreamState);
+                yield return ConvertLwPolylineSegment(vertex, next, affine, scale, pdfStreamState);
                 vertex = next;
             }
             if (lwPolyline.IsClosed)
@@ -241,7 +244,7 @@ namespace IxMilia.Converters
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IPdfPathItem ConvertPolylineSegment(DxfLwPolylineVertex vertex, DxfLwPolylineVertex next, Matrix4 affine,
+        private static IPdfPathItem ConvertLwPolylineSegment(DxfLwPolylineVertex vertex, DxfLwPolylineVertex next, Matrix4 affine,
             Matrix4 scale, PdfStreamState pdfStreamState)
         {
             var p1 = affine.Transform(new Vector(vertex.X, vertex.Y, 0))
@@ -293,10 +296,89 @@ namespace IxMilia.Converters
                 startAngle, endAngle, pdfStreamState);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static IEnumerable<IPdfPathItem> ConvertPolyline(DxfPolyline polyline, DxfLayer layer, Matrix4 affine, Matrix4 scale)
+        {
+            var pdfStreamState = new PdfStreamState(
+                strokeColor: GetPdfColor(polyline, layer),
+                strokeWidth: GetStrokeWidth(polyline, layer));
+            var vertices = polyline.Vertices;
+            var n = vertices.Count;
+            var vertex = vertices[0];
+            for (int i = 1; i < n; i++)
+            {
+                var next = vertices[i];
+                yield return ConvertPolylineSegment(vertex, next, affine, scale, pdfStreamState);
+                vertex = next;
+            }
+            if (polyline.IsClosed)
+            {
+                var next = vertices[0];
+                var p1 = affine.Transform(new Vector(vertex.Location.X, vertex.Location.Y, 0))
+                    .ToPdfPoint(PdfMeasurementType.Point);
+                var p2 = affine.Transform(new Vector(next.Location.X, next.Location.Y, 0))
+                    .ToPdfPoint(PdfMeasurementType.Point);
+                yield return new PdfLine(p1, p2, pdfStreamState);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static IPdfPathItem ConvertPolylineSegment(DxfVertex vertex, DxfVertex next, Matrix4 affine,
+            Matrix4 scale, PdfStreamState pdfStreamState)
+        {
+            var p1 = affine.Transform(new Vector(vertex.Location.X, vertex.Location.Y, 0))
+                .ToPdfPoint(PdfMeasurementType.Point);
+            var p2 = affine.Transform(new Vector(next.Location.X, next.Location.Y, 0))
+                .ToPdfPoint(PdfMeasurementType.Point);
+            if (vertex.Bulge.IsCloseTo(0.0))
+            {
+                return new PdfLine(p1, p2, pdfStreamState);
+            }
+
+            var dx = next.Location.X - vertex.Location.X;
+            var dy = next.Location.Y - vertex.Location.Y;
+            var length = Math.Sqrt(dx * dx + dy * dy);
+            if (length.IsCloseTo(1e-10))
+            {
+                // segment is very short, avoid numerical problems
+                return new PdfLine(p1, p2, pdfStreamState);
+            }
+
+            var alpha = 4.0 * Math.Atan(vertex.Bulge);
+            var radius = length / (2.0 * Math.Abs(Math.Sin(alpha * 0.5)));
+
+            var bulgeFactor = Math.Sign(vertex.Bulge) * Math.Cos(alpha * 0.5) * radius;
+            var normalX = -(dy / length) * bulgeFactor;
+            var normalY = +(dx / length) * bulgeFactor;
+
+            // calculate center (dxf coordinate system), start and end angle
+            var cx = (vertex.Location.X + next.Location.X) / 2 + normalX;
+            var cy = (vertex.Location.Y + next.Location.Y) / 2 + normalY;
+            double startAngle;
+            double endAngle;
+            if (vertex.Bulge > 0) // counter-clockwise
+            {
+                startAngle = Math.Atan2(vertex.Location.Y - cy, vertex.Location.X - cx);
+                endAngle = Math.Atan2(next.Location.Y - cy, next.Location.X - cx);
+            }
+            else // clockwise: flip start and end angle
+            {
+                startAngle = Math.Atan2(next.Location.Y - cy, next.Location.X - cx);
+                endAngle = Math.Atan2(vertex.Location.Y - cy, vertex.Location.X - cx);
+            }
+
+            // transform to PDF coordinate system
+            var center = affine.Transform(new Vector(cx, cy, 0)).ToPdfPoint(PdfMeasurementType.Point);
+            var pdfRadius = scale.Transform(new Vector(radius, radius, radius)).ToPdfPoint(PdfMeasurementType.Point);
+            const double rotation = 0;
+            return new PdfEllipse(center, pdfRadius.X, pdfRadius.Y, rotation,
+                startAngle, endAngle, pdfStreamState);
+        }
+
         #endregion
 
         #region Color and Stroke Width Conversion
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static PdfColor GetPdfColor(DxfEntity entity, DxfLayer layer)
         {
