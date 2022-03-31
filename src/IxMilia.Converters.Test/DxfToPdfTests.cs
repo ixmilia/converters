@@ -194,5 +194,36 @@ S
 endstream".Trim());
             Assert.Contains(expected, pdf);
         }
+
+        [Fact]
+        public void EmbeddedJpegTest()
+        {
+            var dxf = new DxfFile();
+            var image = new DxfImage("image-path.jpg", new DxfPoint(1.0, 1.0, 0.0), 16, 16, new DxfVector(2.0, 2.0, 0.0));
+            dxf.Entities.Add(image);
+            var options = new DxfToPdfConverterOptions(
+                PdfMeasurement.Inches(8.5),
+                PdfMeasurement.Inches(11.0),
+                1.0,
+                contentResolver: path => new byte[]
+                {
+                    // content of image doesn't really matter
+                    0x01, 0x02, 0x03, 0x04
+                });
+
+            var pdf = ConvertToString(dxf, options);
+            Assert.Contains("144.00 0.00 0.00 144.00 72.00 72.00 cm", pdf); // transform
+            Assert.Contains("/Im5 Do", pdf); // drawing instruction
+            var expectedObjectHeader = NormalizeCrLf(@"
+<</Type /XObject
+  /Subtype /Image
+  /Width 16
+  /Height 16
+  /ColorSpace /DeviceRGB
+  /BitsPerComponent 8
+  /Length 4
+  /Filter [/DCTDecode]>>".Trim());
+            Assert.Contains(expectedObjectHeader, pdf);
+        }
     }
 }

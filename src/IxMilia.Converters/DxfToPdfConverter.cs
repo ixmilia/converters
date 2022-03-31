@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using IxMilia.Dxf;
 using IxMilia.Dxf.Entities;
 using IxMilia.Pdf;
+using IxMilia.Pdf.Encoders;
 
 namespace IxMilia.Converters
 {
@@ -16,22 +18,40 @@ namespace IxMilia.Converters
         public ConverterDxfRect DxfRect { get; }
         public ConverterPdfRect PdfRect { get; }
 
-        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, double scale)
+        private Func<string, byte[]> _contentResolver;
+
+        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, double scale, Func<string, byte[]> contentResolver = null)
         {
             PageWidth = pageWidth;
             PageHeight = pageHeight;
             Scale = scale;
             this.DxfRect = null;
             this.PdfRect = null;
+            _contentResolver = contentResolver;
         }
 
-        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDxfRect dxfSource, ConverterPdfRect pdfDestination)
+        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDxfRect dxfSource, ConverterPdfRect pdfDestination, Func<string, byte[]> contentResolver = null)
         {
             PageWidth = pageWidth;
             PageHeight = pageHeight;
             Scale = 1d;
             this.DxfRect = dxfSource ?? throw new ArgumentNullException(nameof(dxfSource));
             this.PdfRect = pdfDestination ?? throw new ArgumentNullException(nameof(pdfDestination));
+            _contentResolver = contentResolver;
+        }
+
+        public bool TryResolveContent(string path, out byte[] content)
+        {
+            if (_contentResolver != null)
+            {
+                content = _contentResolver(path);
+                return true;
+            }
+            else
+            {
+                content = null;
+                return false;
+            }
         }
     }
 
@@ -50,11 +70,21 @@ namespace IxMilia.Converters
 
             var builder = new PdfPathBuilder();
 
+            // do images first so lines and text appear on top...
             foreach (var layer in source.Layers)
             {
-                foreach (var entity in source.Entities.Where(e => e.Layer == layer.Name))
+                foreach (var image in source.Entities.OfType<DxfImage>().Where(i => i.Layer == layer.Name))
                 {
-                    TryConvertEntity(entity, layer, affine, scale, builder, page);
+                    TryConvertEntity(image, layer, affine, scale, builder, page, options);
+                }
+            }
+
+            // ...now do lines and text
+            foreach (var layer in source.Layers)
+            {
+                foreach (var entity in source.Entities.Where(e => e.Layer == layer.Name && e.EntityType != DxfEntityType.Image))
+                {
+                    TryConvertEntity(entity, layer, affine, scale, builder, page, options);
                     // if that failed, emit some diagnostic hint? Callback?
                 }
             }
@@ -104,9 +134,9 @@ namespace IxMilia.Converters
         }
 
         #region Entity Conversions
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool TryConvertEntity(DxfEntity entity, DxfLayer layer, Matrix4 affine, Matrix4 scale, PdfPathBuilder builder, PdfPage page)
+        internal static bool TryConvertEntity(DxfEntity entity, DxfLayer layer, Matrix4 affine, Matrix4 scale, PdfPathBuilder builder, PdfPage page, DxfToPdfConverterOptions options)
         {
             switch (entity)
             {
@@ -132,6 +162,17 @@ namespace IxMilia.Converters
                 case DxfPolyline polyline:
                     Add(ConvertPolyline(polyline, layer, affine, scale), builder);
                     return true;
+                case DxfImage image:
+                    if (TryConvertImage(image, layer, affine, scale, options, out var imageItem))
+                    {
+                        // TODO flush path builder and recreate
+                        page.Items.Add(imageItem);
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 default:
                     return false;
             }
@@ -175,7 +216,7 @@ namespace IxMilia.Converters
                 strokeWidth: thickness);
             yield return new PdfCircle(p, thickness / 2, pdfStreamState);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static IEnumerable<IPdfPathItem> ConvertLine(DxfLine line, DxfLayer layer, Matrix4 affine)
         {
@@ -186,7 +227,7 @@ namespace IxMilia.Converters
                 strokeWidth: GetStrokeWidth(line, layer));
             yield return new PdfLine(p1, p2, pdfStreamState);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static IEnumerable<IPdfPathItem> ConvertCircle(DxfCircle circle, DxfLayer layer, Matrix4 affine, Matrix4 scale)
         {
@@ -217,7 +258,7 @@ namespace IxMilia.Converters
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertLwPolyline(DxfLwPolyline lwPolyline, DxfLayer layer, 
+        private static IEnumerable<IPdfPathItem> ConvertLwPolyline(DxfLwPolyline lwPolyline, DxfLayer layer,
             Matrix4 affine, Matrix4 scale)
         {
             var pdfStreamState = new PdfStreamState(
@@ -239,7 +280,7 @@ namespace IxMilia.Converters
                 yield return ConvertLwPolylineSegment(vertex, next, affine, scale, pdfStreamState);
             }
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static IPdfPathItem ConvertLwPolylineSegment(DxfLwPolylineVertex vertex, DxfLwPolylineVertex next, Matrix4 affine,
             Matrix4 scale, PdfStreamState pdfStreamState)
@@ -368,6 +409,45 @@ namespace IxMilia.Converters
                 startAngle, endAngle, pdfStreamState);
         }
 
+        private static bool TryConvertImage(DxfImage image, DxfLayer layer, Matrix4 affine, Matrix4 scale, DxfToPdfConverterOptions options, out PdfImageItem imageItem)
+        {
+            imageItem = null;
+
+            // prepare image decoders
+            IPdfEncoder[] encoders = Array.Empty<IPdfEncoder>();
+            switch (Path.GetExtension(image.ImageDefinition.FilePath).ToLowerInvariant())
+            {
+                case ".jpg":
+                case ".jpeg":
+                    encoders = new IPdfEncoder[] { new CustomPassThroughEncoder("DCTDecode") };
+                    break;
+                case ".png":
+                // png isn't directly supported by pdf; the raw pixels will have to be embedded, probably in a FlateDecode filter
+                default:
+                    // unsupported image
+                    return false;
+            }
+
+            // get raw image bytes
+            if (!options.TryResolveContent(image.ImageDefinition.FilePath, out var imageBytes))
+            {
+                // couldn't resolve image content
+                return false;
+            }
+
+            var imageSizeDxf = new Vector(image.UVector.Length * image.ImageSize.X, image.VVector.Length * image.ImageSize.Y, 0.0);
+            var imageSizeOnPage = affine.Transform(imageSizeDxf);
+            var radians = Math.Atan2(image.UVector.Y, image.UVector.X);
+            var degrees = radians * 180.0 / Math.PI;
+            var locationOnPage = affine.Transform(new Vector(image.Location.X, image.Location.Y, 0.0));
+            var transform = Matrix4.CreateTranslate(locationOnPage) * Matrix4.RotateAboutZ(degrees) * Matrix4.CreateScale(imageSizeOnPage.X, imageSizeOnPage.Y, 1.0);
+            var colorSpace = PdfColorSpace.DeviceRGB; // TODO: read from image
+            var bitsPerComponent = 8; // TODO: read from image
+            var imageObject = new PdfImageObject((int)image.ImageSize.X, (int)image.ImageSize.Y, colorSpace, bitsPerComponent, imageBytes, encoders);
+            imageItem = new PdfImageItem(imageObject, transform.ToPdfMatrix());
+            return true;
+        }
+
         #endregion
 
         #region Color and Stroke Width Conversion
@@ -389,7 +469,7 @@ namespace IxMilia.Converters
             // default to black, probably not correct.
             return new PdfColor(0, 0, 0);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static PdfColor ToPdfColor(int rgb)
         {
@@ -407,7 +487,7 @@ namespace IxMilia.Converters
             }
             return new PdfColor(r / 255.0, g / 255.0, b / 255.0);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static DxfColor GetFinalDxfColor(DxfEntity entity, DxfLayer layer)
         {
@@ -429,7 +509,7 @@ namespace IxMilia.Converters
         private static PdfMeasurement GetStrokeWidth(DxfEntity entity, DxfLayer layer)
         {
             // TODO many entities have a Thickness property (which is often zero).
-            DxfLineWeight lw = new DxfLineWeight {Value = entity.LineweightEnumValue};
+            DxfLineWeight lw = new DxfLineWeight { Value = entity.LineweightEnumValue };
             DxfLineWeightType type = lw.LineWeightType;
             if (type == DxfLineWeightType.ByLayer)
             {
