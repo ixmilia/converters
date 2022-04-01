@@ -17,28 +17,41 @@ namespace IxMilia.Converters
         public ConverterSvgRect SvgRect { get; }
         public string SvgId { get; }
 
-        private Func<string, byte[]> _contentResolver;
+        private Func<string, string> _imageHrefResolver;
 
-        public DxfToSvgConverterOptions(ConverterDxfRect dxfRect, ConverterSvgRect svgRect, string svgId = null, Func<string, byte[]> contentResolver = null)
+        public DxfToSvgConverterOptions(ConverterDxfRect dxfRect, ConverterSvgRect svgRect, string svgId = null, Func<string, string> imageHrefResolver = null)
         {
             DxfRect = dxfRect;
             SvgRect = svgRect;
             SvgId = svgId;
-            _contentResolver = contentResolver;
+            _imageHrefResolver = imageHrefResolver ?? (href => href);
         }
 
-        public bool TryResolveContent(string path, out byte[] content)
+        public string ResolveImageHref(string path) => _imageHrefResolver(path);
+
+        public static Func<string, string> CreateDataUriResolver(Func<string, byte[]> dataResolver)
         {
-            if (_contentResolver != null)
+            return path =>
             {
-                content = _contentResolver(path);
-                return true;
-            }
-            else
-            {
-                content = null;
-                return false;
-            }
+                string mimeType;
+                switch (Path.GetExtension(path).ToLowerInvariant())
+                {
+                    case ".jpg":
+                    case ".jpeg":
+                        mimeType = "image/jpeg";
+                        break;
+                    case ".png":
+                        mimeType = "image/png";
+                        break;
+                    default:
+                        mimeType = "image/unknown";
+                        break;
+                }
+
+                var data = dataResolver(path);
+                var base64 = Convert.ToBase64String(data);
+                return $"data:{mimeType};base64,{base64}";
+            };
         }
     }
 
@@ -337,27 +350,7 @@ namespace IxMilia.Converters
 
         public static XElement ToXElement(this DxfImage image, DxfToSvgConverterOptions options)
         {
-            string mimeType;
-            switch (Path.GetExtension(image.ImageDefinition.FilePath).ToLowerInvariant())
-            {
-                case ".jpg":
-                case ".jpeg":
-                    mimeType = "image/jpeg";
-                    break;
-                case ".png":
-                    mimeType = "image/png";
-                    break;
-                default:
-                    // unsupported extension
-                    return null;
-            }
-
-            if (!options.TryResolveContent(image.ImageDefinition.FilePath, out var imageData))
-            {
-                // couldn't get content
-                return null;
-            }
-
+            var imageHref = options.ResolveImageHref(image.ImageDefinition.FilePath);
             var imageWidth = image.UVector.Length * image.ImageSize.X;
             var imageHeight = image.VVector.Length * image.ImageSize.Y;
             var radians = Math.Atan2(image.UVector.Y, image.UVector.X);
@@ -365,11 +358,10 @@ namespace IxMilia.Converters
             var displayRotationDegrees = -radians * 180.0 / Math.PI;
             var topLeftDxf = image.Location + upVector;
             var insertLocation = topLeftDxf;
-            var href = $"data:{mimeType};base64,{Convert.ToBase64String(imageData)}";
             return new XElement(DxfToSvgConverter.Xmlns + "g",
                 new XAttribute("transform", $"translate({insertLocation.X.ToDisplayString()} {insertLocation.Y.ToDisplayString()}) scale(1 -1)"),
                 new XElement(DxfToSvgConverter.Xmlns + "image",
-                    new XAttribute("href", href),
+                    new XAttribute("href", imageHref),
                     new XAttribute("width", imageWidth.ToDisplayString()),
                     new XAttribute("height", imageHeight.ToDisplayString()),
                     new XAttribute("transform", $"rotate({displayRotationDegrees.ToDisplayString()})"))

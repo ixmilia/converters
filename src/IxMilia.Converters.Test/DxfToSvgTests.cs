@@ -428,11 +428,11 @@ namespace IxMilia.Converters.Test
             var options = new DxfToSvgConverterOptions(
                 new ConverterDxfRect(new DxfBoundingBox(new DxfPoint(0.0, 0.0, 0.0), new DxfVector(2.0, 2.0, 0.0))),
                 new ConverterSvgRect(640, 480),
-                contentResolver: path => new byte[]
+                imageHrefResolver: DxfToSvgConverterOptions.CreateDataUriResolver(path => new byte[]
                 {
                     // content of image doesn't really matter
                     0x01, 0x02, 0x03, 0x04
-                });
+                }));
             var converter = new DxfToSvgConverter();
             var xml = image.ToXElement(options);
             var expected = new XElement("g",
