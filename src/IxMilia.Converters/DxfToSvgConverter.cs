@@ -17,11 +17,28 @@ namespace IxMilia.Converters
         public ConverterSvgRect SvgRect { get; }
         public string SvgId { get; }
 
-        public DxfToSvgConverterOptions(ConverterDxfRect dxfRect, ConverterSvgRect svgRect, string svgId = null)
+        private Func<string, byte[]> _contentResolver;
+
+        public DxfToSvgConverterOptions(ConverterDxfRect dxfRect, ConverterSvgRect svgRect, string svgId = null, Func<string, byte[]> contentResolver = null)
         {
             DxfRect = dxfRect;
             SvgRect = svgRect;
             SvgId = svgId;
+            _contentResolver = contentResolver;
+        }
+
+        public bool TryResolveContent(string path, out byte[] content)
+        {
+            if (_contentResolver != null)
+            {
+                content = _contentResolver(path);
+                return true;
+            }
+            else
+            {
+                content = null;
+                return false;
+            }
         }
     }
 
@@ -33,17 +50,44 @@ namespace IxMilia.Converters
         {
             // adapted from https://github.com/ixmilia/bcad/blob/main/src/IxMilia.BCad.FileHandlers/Plotting/Svg/SvgPlotter.cs
             var worldGroup = new XElement(Xmlns + "g");
+            var autoColor = DxfColor.FromIndex(0);
+
+            // do images first so lines and text appear on top...
             foreach (var layer in file.Layers.OrderBy(layer => layer.Name))
             {
-                var autoColor = DxfColor.FromIndex(0);
+                var addedImage = false;
+                worldGroup.Add(new XComment($" layer '{layer.Name}' images "));
+                var layerGroup = new XElement(Xmlns + "g",
+                    new XAttribute("stroke", (layer.Color ?? autoColor).ToRGBString()),
+                    new XAttribute("fill", (layer.Color ?? autoColor).ToRGBString()),
+                    new XAttribute("class", $"dxf-layer {layer.Name}"));
+                foreach (var entity in file.Entities.OfType<DxfImage>().Where(i => i.Layer == layer.Name))
+                {
+                    var element = entity.ToXElement(options);
+                    if (element != null)
+                    {
+                        layerGroup.Add(element);
+                        addedImage = true;
+                    }
+                }
+
+                if (addedImage)
+                {
+                    worldGroup.Add(layerGroup);
+                }
+            }
+
+            // ...now do lines and text
+            foreach (var layer in file.Layers.OrderBy(layer => layer.Name))
+            {
                 worldGroup.Add(new XComment($" layer '{layer.Name}' "));
                 var layerGroup = new XElement(Xmlns + "g",
                     new XAttribute("stroke", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("fill", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("class", $"dxf-layer {layer.Name}"));
-                foreach (var entity in file.Entities.Where(entity => entity.Layer == layer.Name))
+                foreach (var entity in file.Entities.Where(entity => entity.Layer == layer.Name && entity.EntityType != DxfEntityType.Image))
                 {
-                    var element = entity.ToXElement();
+                    var element = entity.ToXElement(options);
                     if (element != null)
                     {
                         layerGroup.Add(element);
@@ -214,7 +258,7 @@ namespace IxMilia.Converters
             return value.ToString("0.0##############", CultureInfo.InvariantCulture);
         }
 
-        public static XElement ToXElement(this DxfEntity entity)
+        public static XElement ToXElement(this DxfEntity entity, DxfToSvgConverterOptions options)
         {
             // elements are simply flattened in the z plane; the world transform in the main function handles the rest
             switch (entity)
@@ -225,6 +269,8 @@ namespace IxMilia.Converters
                     return circle.ToXElement();
                 case DxfEllipse ellipse:
                     return ellipse.ToXElement();
+                case DxfImage image:
+                    return image.ToXElement(options);
                 case DxfLine line:
                     return line.ToXElement();
                 case DxfLwPolyline lwPolyline:
@@ -232,7 +278,7 @@ namespace IxMilia.Converters
                 case DxfPolyline polyline:
                     return polyline.ToXElement();
                 case DxfInsert insert:
-                    return insert.ToXElement();
+                    return insert.ToXElement(options);
                 case DxfSpline spline:
                     return spline.ToXElement();
                 default:
@@ -289,6 +335,48 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
+        public static XElement ToXElement(this DxfImage image, DxfToSvgConverterOptions options)
+        {
+            string mimeType;
+            switch (Path.GetExtension(image.ImageDefinition.FilePath).ToLowerInvariant())
+            {
+                case ".jpg":
+                case ".jpeg":
+                    mimeType = "image/jpeg";
+                    break;
+                case ".png":
+                    mimeType = "image/png";
+                    break;
+                default:
+                    // unsupported extension
+                    return null;
+            }
+
+            if (!options.TryResolveContent(image.ImageDefinition.FilePath, out var imageData))
+            {
+                // couldn't get content
+                return null;
+            }
+
+            var imageWidth = image.UVector.Length * image.ImageSize.X;
+            var imageHeight = image.VVector.Length * image.ImageSize.Y;
+            var radians = Math.Atan2(image.UVector.Y, image.UVector.X);
+            var upVector = new DxfVector(-Math.Sin(radians), Math.Cos(radians), 0.0) * imageHeight;
+            var displayRotationDegrees = -radians * 180.0 / Math.PI;
+            var topLeftDxf = image.Location + upVector;
+            var insertLocation = topLeftDxf;
+            var href = $"data:{mimeType};base64,{Convert.ToBase64String(imageData)}";
+            return new XElement(DxfToSvgConverter.Xmlns + "g",
+                new XAttribute("transform", $"translate({insertLocation.X.ToDisplayString()} {insertLocation.Y.ToDisplayString()}) scale(1 -1)"),
+                new XElement(DxfToSvgConverter.Xmlns + "image",
+                    new XAttribute("href", href),
+                    new XAttribute("width", imageWidth.ToDisplayString()),
+                    new XAttribute("height", imageHeight.ToDisplayString()),
+                    new XAttribute("transform", $"rotate({displayRotationDegrees.ToDisplayString()})"))
+                    .AddStroke(image.Color)
+                    .AddVectorEffect());
+        }
+
         public static XElement ToXElement(this DxfLine line)
         {
             return new XElement(DxfToSvgConverter.Xmlns + "line",
@@ -323,14 +411,14 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
-        public static XElement ToXElement(this DxfInsert insert)
+        public static XElement ToXElement(this DxfInsert insert, DxfToSvgConverterOptions options)
         {
             var g = new XElement(DxfToSvgConverter.Xmlns + "g",
                 new XAttribute("class", $"dxf-insert {insert.Name}"),
                 new XAttribute("transform", $"translate({insert.Location.X.ToDisplayString()} {insert.Location.Y.ToDisplayString()}) scale({insert.XScaleFactor.ToDisplayString()} {insert.YScaleFactor.ToDisplayString()})"));
             foreach (var blockEntity in insert.Entities)
             {
-                g.Add(blockEntity.ToXElement());
+                g.Add(blockEntity.ToXElement(options));
             }
 
             return g;

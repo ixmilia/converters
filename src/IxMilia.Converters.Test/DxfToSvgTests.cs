@@ -144,7 +144,7 @@ namespace IxMilia.Converters.Test
             };
             var path = ellipse.GetSvgPath();
             Assert.Equal(2, path.Segments.Count);
-            
+
             var move = (SvgMoveToPath)path.Segments[0];
             AssertClose(2.0, move.LocationX);
             AssertClose(2.0, move.LocationY);
@@ -250,7 +250,7 @@ namespace IxMilia.Converters.Test
                     new XAttribute("stroke-width", "1.0px"),
                     new XAttribute("vector-effect", "non-scaling-stroke")));
 
-            var actual = insert.ToXElement();
+            var actual = insert.ToXElement(default);
             AssertXElement(expected, actual);
         }
 
@@ -419,6 +419,31 @@ namespace IxMilia.Converters.Test
             Assert.False(arc.IsCounterClockwiseSweep);
             Assert.False(arc.IsLargeArc);
             Assert.Equal(0.0, arc.XAxisRotation);
+        }
+
+        [Fact]
+        public void EmbeddedJpegTest()
+        {
+            var image = new DxfImage("image-path.jpg", new DxfPoint(1.0, 1.0, 0.0), 16, 16, new DxfVector(2.0, 2.0, 0.0));
+            var options = new DxfToSvgConverterOptions(
+                new ConverterDxfRect(new DxfBoundingBox(new DxfPoint(0.0, 0.0, 0.0), new DxfVector(2.0, 2.0, 0.0))),
+                new ConverterSvgRect(640, 480),
+                contentResolver: path => new byte[]
+                {
+                    // content of image doesn't really matter
+                    0x01, 0x02, 0x03, 0x04
+                });
+            var converter = new DxfToSvgConverter();
+            var xml = image.ToXElement(options);
+            var expected = new XElement("g",
+                new XAttribute("transform", "translate(1.0 3.0) scale(1 -1)"),
+                new XElement("image",
+                    new XAttribute("href", "data:image/jpeg;base64,AQIDBA=="),
+                    new XAttribute("width", "2.0"),
+                    new XAttribute("height", "2.0"),
+                    new XAttribute("transform", "rotate(-0.0)"),
+                    new XAttribute("vector-effect", "non-scaling-stroke")));
+            AssertXElement(expected, xml);
         }
 
         [Fact]
