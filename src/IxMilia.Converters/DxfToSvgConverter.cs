@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using IxMilia.Dxf;
@@ -17,21 +18,21 @@ namespace IxMilia.Converters
         public ConverterSvgRect SvgRect { get; }
         public string SvgId { get; }
 
-        private Func<string, string> _imageHrefResolver;
+        private Func<string, Task<string>> _imageHrefResolver;
 
-        public DxfToSvgConverterOptions(ConverterDxfRect dxfRect, ConverterSvgRect svgRect, string svgId = null, Func<string, string> imageHrefResolver = null)
+        public DxfToSvgConverterOptions(ConverterDxfRect dxfRect, ConverterSvgRect svgRect, string svgId = null, Func<string, Task<string>> imageHrefResolver = null)
         {
             DxfRect = dxfRect;
             SvgRect = svgRect;
             SvgId = svgId;
-            _imageHrefResolver = imageHrefResolver ?? (href => href);
+            _imageHrefResolver = imageHrefResolver ?? (href => Task.FromResult(href));
         }
 
-        public string ResolveImageHref(string path) => _imageHrefResolver(path);
+        public Task<string> ResolveImageHrefAsync(string path) => _imageHrefResolver(path);
 
-        public static Func<string, string> CreateDataUriResolver(Func<string, byte[]> dataResolver)
+        public static Func<string, Task<string>> CreateDataUriResolver(Func<string, Task<byte[]>> dataResolver)
         {
-            return path =>
+            return async path =>
             {
                 string mimeType;
                 switch (Path.GetExtension(path).ToLowerInvariant())
@@ -48,7 +49,7 @@ namespace IxMilia.Converters
                         break;
                 }
 
-                var data = dataResolver(path);
+                var data = await dataResolver(path);
                 var base64 = Convert.ToBase64String(data);
                 return $"data:{mimeType};base64,{base64}";
             };
@@ -59,7 +60,7 @@ namespace IxMilia.Converters
     {
         public static XNamespace Xmlns = "http://www.w3.org/2000/svg";
 
-        public XElement Convert(DxfFile file, DxfToSvgConverterOptions options)
+        public async Task<XElement> Convert(DxfFile file, DxfToSvgConverterOptions options)
         {
             // adapted from https://github.com/ixmilia/bcad/blob/main/src/IxMilia.BCad.FileHandlers/Plotting/Svg/SvgPlotter.cs
             var worldGroup = new XElement(Xmlns + "g");
@@ -76,7 +77,7 @@ namespace IxMilia.Converters
                     new XAttribute("class", $"dxf-layer {layer.Name}"));
                 foreach (var entity in file.Entities.OfType<DxfImage>().Where(i => i.Layer == layer.Name))
                 {
-                    var element = entity.ToXElement(options);
+                    var element = await entity.ToXElement(options);
                     if (element != null)
                     {
                         layerGroup.Add(element);
@@ -100,7 +101,7 @@ namespace IxMilia.Converters
                     new XAttribute("class", $"dxf-layer {layer.Name}"));
                 foreach (var entity in file.Entities.Where(entity => entity.Layer == layer.Name && entity.EntityType != DxfEntityType.Image))
                 {
-                    var element = entity.ToXElement(options);
+                    var element = await entity.ToXElement(options);
                     if (element != null)
                     {
                         layerGroup.Add(element);
@@ -271,7 +272,7 @@ namespace IxMilia.Converters
             return value.ToString("0.0##############", CultureInfo.InvariantCulture);
         }
 
-        public static XElement ToXElement(this DxfEntity entity, DxfToSvgConverterOptions options)
+        public static async Task<XElement> ToXElement(this DxfEntity entity, DxfToSvgConverterOptions options)
         {
             // elements are simply flattened in the z plane; the world transform in the main function handles the rest
             switch (entity)
@@ -283,7 +284,7 @@ namespace IxMilia.Converters
                 case DxfEllipse ellipse:
                     return ellipse.ToXElement();
                 case DxfImage image:
-                    return image.ToXElement(options);
+                    return await image.ToXElement(options);
                 case DxfLine line:
                     return line.ToXElement();
                 case DxfLwPolyline lwPolyline:
@@ -291,7 +292,7 @@ namespace IxMilia.Converters
                 case DxfPolyline polyline:
                     return polyline.ToXElement();
                 case DxfInsert insert:
-                    return insert.ToXElement(options);
+                    return await insert.ToXElement(options);
                 case DxfSpline spline:
                     return spline.ToXElement();
                 default:
@@ -348,9 +349,9 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
-        public static XElement ToXElement(this DxfImage image, DxfToSvgConverterOptions options)
+        public static async Task<XElement> ToXElement(this DxfImage image, DxfToSvgConverterOptions options)
         {
-            var imageHref = options.ResolveImageHref(image.ImageDefinition.FilePath);
+            var imageHref = await options.ResolveImageHrefAsync(image.ImageDefinition.FilePath);
             var imageWidth = image.UVector.Length * image.ImageSize.X;
             var imageHeight = image.VVector.Length * image.ImageSize.Y;
             var radians = Math.Atan2(image.UVector.Y, image.UVector.X);
@@ -403,14 +404,14 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
-        public static XElement ToXElement(this DxfInsert insert, DxfToSvgConverterOptions options)
+        public static async Task<XElement> ToXElement(this DxfInsert insert, DxfToSvgConverterOptions options)
         {
             var g = new XElement(DxfToSvgConverter.Xmlns + "g",
                 new XAttribute("class", $"dxf-insert {insert.Name}"),
                 new XAttribute("transform", $"translate({insert.Location.X.ToDisplayString()} {insert.Location.Y.ToDisplayString()}) scale({insert.XScaleFactor.ToDisplayString()} {insert.YScaleFactor.ToDisplayString()})"));
             foreach (var blockEntity in insert.Entities)
             {
-                g.Add(blockEntity.ToXElement(options));
+                g.Add(await blockEntity.ToXElement(options));
             }
 
             return g;

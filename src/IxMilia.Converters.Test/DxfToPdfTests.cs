@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using IxMilia.Dxf;
 using IxMilia.Dxf.Entities;
 using IxMilia.Pdf;
@@ -11,7 +12,7 @@ namespace IxMilia.Converters.Test
 {
     public class DxfToPdfTests : TestBase
     {
-        private static string ConvertToString(DxfFile dxf, PdfMeasurement? pageWidth = null, PdfMeasurement? pageHeight = null, double scale = 1.0)
+        private static Task<string> ConvertToString(DxfFile dxf, PdfMeasurement? pageWidth = null, PdfMeasurement? pageHeight = null, double scale = 1.0)
         {
             var options = new DxfToPdfConverterOptions(
                 pageWidth ?? PdfMeasurement.Inches(8.5),
@@ -20,10 +21,10 @@ namespace IxMilia.Converters.Test
             return ConvertToString(dxf, options);
         }
 
-        private static string ConvertToString(DxfFile dxf, DxfToPdfConverterOptions options)
+        private static async Task<string> ConvertToString(DxfFile dxf, DxfToPdfConverterOptions options)
         {
             var converter = new DxfToPdfConverter();
-            var pdf = converter.Convert(dxf, options);
+            var pdf = await converter.Convert(dxf, options);
             using (var ms = new MemoryStream())
             {
                 pdf.Save(ms);
@@ -40,10 +41,10 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
-        public void EmptyTest()
+        public async Task EmptyTest()
         {
             var dxf = new DxfFile();
-            var pdf = ConvertToString(dxf);
+            var pdf = await ConvertToString(dxf);
             var expectedEmptyStream = NormalizeCrLf(@"
 stream
 0 w
@@ -55,7 +56,7 @@ endstream".Trim());
         }
 
         [Fact]
-        public void SimpleLineTest()
+        public async Task SimpleLineTest()
         {
             var dxf = new DxfFile();
             dxf.ActiveViewPort = new DxfViewPort("viewport-name")
@@ -65,7 +66,7 @@ endstream".Trim());
             };
             // line from (0,0) to (8.5,11), but half scale
             dxf.Entities.Add(new DxfLine(new DxfPoint(0.0, 0.0, 0.0), new DxfPoint(8.5, 11.0, 0.0)));
-            var pdf = ConvertToString(dxf, scale: 0.5);
+            var pdf = await ConvertToString(dxf, scale: 0.5);
             // expected line from lower left of sheet to center
             var expected = NormalizeCrLf(@"
 stream
@@ -80,7 +81,7 @@ endstream".Trim());
         }
 
         [Fact]
-        public void SourceDestinationTransformTest()
+        public async Task SourceDestinationTransformTest()
         {
             var dxf = new DxfFile();
             // line from (2,2) to (3,3)
@@ -89,7 +90,7 @@ endstream".Trim());
                 new ConverterDxfRect(2, 3, 2, 3),
                 new ConverterPdfRect(PdfMeasurement.Points(100), PdfMeasurement.Points(200), PdfMeasurement.Points(300), PdfMeasurement.Points(400)));
 
-            var pdf = ConvertToString(dxf, options);
+            var pdf = await ConvertToString(dxf, options);
             // expected line from (100,300)pt to (200,400)pt
             var expected = NormalizeCrLf(@"
 stream
@@ -104,7 +105,7 @@ endstream".Trim());
         }
 
         [Fact]
-        public void RenderClosedLwPolylineTest()
+        public async Task RenderClosedLwPolylineTest()
         {
             //   2,2 D
             //    ------------- 3,2 C
@@ -126,7 +127,7 @@ endstream".Trim());
             var dxf = new DxfFile();
             dxf.Entities.Add(poly);
 
-            var pdf = ConvertToString(dxf);
+            var pdf = await ConvertToString(dxf);
             var expected = NormalizeCrLf(@"
 stream
 0 w
@@ -150,7 +151,7 @@ endstream".Trim());
         }
 
         [Fact]
-        public void RenderClosedPolylineTest()
+        public async Task RenderClosedPolylineTest()
         {
             //   2,2 D
             //    ------------- 3,2 C
@@ -172,7 +173,7 @@ endstream".Trim());
             var dxf = new DxfFile();
             dxf.Entities.Add(poly);
 
-            var pdf = ConvertToString(dxf);
+            var pdf = await ConvertToString(dxf);
             var expected = NormalizeCrLf(@"
 stream
 0 w
@@ -196,7 +197,7 @@ endstream".Trim());
         }
 
         [Fact]
-        public void EmbeddedJpegTest()
+        public async Task EmbeddedJpegTest()
         {
             var dxf = new DxfFile();
             var image = new DxfImage("image-path.jpg", new DxfPoint(1.0, 1.0, 0.0), 16, 16, new DxfVector(2.0, 2.0, 0.0));
@@ -205,13 +206,13 @@ endstream".Trim());
                 PdfMeasurement.Inches(8.5),
                 PdfMeasurement.Inches(11.0),
                 1.0,
-                contentResolver: path => new byte[]
+                contentResolver: path => Task.FromResult(new byte[]
                 {
                     // content of image doesn't really matter
                     0x01, 0x02, 0x03, 0x04
-                });
+                }));
 
-            var pdf = ConvertToString(dxf, options);
+            var pdf = await ConvertToString(dxf, options);
             Assert.Contains("144.00 0.00 0.00 144.00 72.00 72.00 cm", pdf); // transform
             Assert.Contains("/Im5 Do", pdf); // drawing instruction
             var expectedObjectHeader = NormalizeCrLf(@"

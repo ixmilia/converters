@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using IxMilia.Dxf;
 using IxMilia.Dxf.Entities;
 using IxMilia.Pdf;
@@ -18,9 +19,9 @@ namespace IxMilia.Converters
         public ConverterDxfRect DxfRect { get; }
         public ConverterPdfRect PdfRect { get; }
 
-        private Func<string, byte[]> _contentResolver;
+        private Func<string, Task<byte[]>> _contentResolver;
 
-        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, double scale, Func<string, byte[]> contentResolver = null)
+        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, double scale, Func<string, Task<byte[]>> contentResolver = null)
         {
             PageWidth = pageWidth;
             PageHeight = pageHeight;
@@ -30,7 +31,7 @@ namespace IxMilia.Converters
             _contentResolver = contentResolver;
         }
 
-        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDxfRect dxfSource, ConverterPdfRect pdfDestination, Func<string, byte[]> contentResolver = null)
+        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDxfRect dxfSource, ConverterPdfRect pdfDestination, Func<string, Task<byte[]>> contentResolver = null)
         {
             PageWidth = pageWidth;
             PageHeight = pageHeight;
@@ -40,17 +41,16 @@ namespace IxMilia.Converters
             _contentResolver = contentResolver;
         }
 
-        public bool TryResolveContent(string path, out byte[] content)
+        public async Task<byte[]> ResolveContentAsync(string path)
         {
             if (_contentResolver != null)
             {
-                content = _contentResolver(path);
-                return true;
+                var content = await _contentResolver(path);
+                return content;
             }
             else
             {
-                content = null;
-                return false;
+                return null;
             }
         }
     }
@@ -60,7 +60,7 @@ namespace IxMilia.Converters
         // TODO How to manage fonts? PDF has a dictionary of fonts...
         private static readonly PdfFont Font = new PdfFontType1(PdfFontType1Type.Helvetica);
 
-        public PdfFile Convert(DxfFile source, DxfToPdfConverterOptions options)
+        public async Task<PdfFile> Convert(DxfFile source, DxfToPdfConverterOptions options)
         {
             // adapted from https://github.com/ixmilia/bcad/blob/main/src/IxMilia.BCad.FileHandlers/Plotting/Pdf/PdfPlotter.cs
             CreateTransformations(source.ActiveViewPort, options, out Matrix4 scale, out Matrix4 affine);
@@ -75,7 +75,7 @@ namespace IxMilia.Converters
             {
                 foreach (var image in source.Entities.OfType<DxfImage>().Where(i => i.Layer == layer.Name))
                 {
-                    TryConvertEntity(image, layer, affine, scale, builder, page, options);
+                    await TryConvertEntity(image, layer, affine, scale, builder, page, options);
                 }
             }
 
@@ -84,7 +84,7 @@ namespace IxMilia.Converters
             {
                 foreach (var entity in source.Entities.Where(e => e.Layer == layer.Name && e.EntityType != DxfEntityType.Image))
                 {
-                    TryConvertEntity(entity, layer, affine, scale, builder, page, options);
+                    await TryConvertEntity(entity, layer, affine, scale, builder, page, options);
                     // if that failed, emit some diagnostic hint? Callback?
                 }
             }
@@ -136,7 +136,7 @@ namespace IxMilia.Converters
         #region Entity Conversions
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool TryConvertEntity(DxfEntity entity, DxfLayer layer, Matrix4 affine, Matrix4 scale, PdfPathBuilder builder, PdfPage page, DxfToPdfConverterOptions options)
+        internal static async Task<bool> TryConvertEntity(DxfEntity entity, DxfLayer layer, Matrix4 affine, Matrix4 scale, PdfPathBuilder builder, PdfPage page, DxfToPdfConverterOptions options)
         {
             switch (entity)
             {
@@ -163,7 +163,8 @@ namespace IxMilia.Converters
                     Add(ConvertPolyline(polyline, layer, affine, scale), builder);
                     return true;
                 case DxfImage image:
-                    if (TryConvertImage(image, layer, affine, scale, options, out var imageItem))
+                    var imageItem = await TryConvertImage(image, layer, affine, scale, options);
+                    if (imageItem != null)
                     {
                         // TODO flush path builder and recreate
                         page.Items.Add(imageItem);
@@ -409,10 +410,8 @@ namespace IxMilia.Converters
                 startAngle, endAngle, pdfStreamState);
         }
 
-        private static bool TryConvertImage(DxfImage image, DxfLayer layer, Matrix4 affine, Matrix4 scale, DxfToPdfConverterOptions options, out PdfImageItem imageItem)
+        private static async Task<PdfImageItem> TryConvertImage(DxfImage image, DxfLayer layer, Matrix4 affine, Matrix4 scale, DxfToPdfConverterOptions options)
         {
-            imageItem = null;
-
             // prepare image decoders
             IPdfEncoder[] encoders = Array.Empty<IPdfEncoder>();
             switch (Path.GetExtension(image.ImageDefinition.FilePath).ToLowerInvariant())
@@ -425,14 +424,15 @@ namespace IxMilia.Converters
                 // png isn't directly supported by pdf; the raw pixels will have to be embedded, probably in a FlateDecode filter
                 default:
                     // unsupported image
-                    return false;
+                    return null;
             }
 
             // get raw image bytes
-            if (!options.TryResolveContent(image.ImageDefinition.FilePath, out var imageBytes))
+            var imageBytes = await options.ResolveContentAsync(image.ImageDefinition.FilePath);
+            if (imageBytes == null)
             {
                 // couldn't resolve image content
-                return false;
+                return null;
             }
 
             var imageSizeDxf = new Vector(image.UVector.Length * image.ImageSize.X, image.VVector.Length * image.ImageSize.Y, 0.0);
@@ -444,8 +444,8 @@ namespace IxMilia.Converters
             var colorSpace = PdfColorSpace.DeviceRGB; // TODO: read from image
             var bitsPerComponent = 8; // TODO: read from image
             var imageObject = new PdfImageObject((int)image.ImageSize.X, (int)image.ImageSize.Y, colorSpace, bitsPerComponent, imageBytes, encoders);
-            imageItem = new PdfImageItem(imageObject, transform.ToPdfMatrix());
-            return true;
+            var imageItem = new PdfImageItem(imageObject, transform.ToPdfMatrix());
+            return imageItem;
         }
 
         #endregion

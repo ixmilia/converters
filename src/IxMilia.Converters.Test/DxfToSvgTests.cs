@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using IxMilia.Dxf;
 using IxMilia.Dxf.Blocks;
@@ -228,7 +229,7 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
-        public void RenderInsertTest()
+        public async Task RenderInsertTest()
         {
             var block = new DxfBlock();
             block.Name = "some-block";
@@ -250,7 +251,7 @@ namespace IxMilia.Converters.Test
                     new XAttribute("stroke-width", "1.0px"),
                     new XAttribute("vector-effect", "non-scaling-stroke")));
 
-            var actual = insert.ToXElement(default);
+            var actual = await insert.ToXElement(default);
             AssertXElement(expected, actual);
         }
 
@@ -422,19 +423,19 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
-        public void EmbeddedJpegTest()
+        public async Task EmbeddedJpegTest()
         {
             var image = new DxfImage("image-path.jpg", new DxfPoint(1.0, 1.0, 0.0), 16, 16, new DxfVector(2.0, 2.0, 0.0));
             var options = new DxfToSvgConverterOptions(
                 new ConverterDxfRect(new DxfBoundingBox(new DxfPoint(0.0, 0.0, 0.0), new DxfVector(2.0, 2.0, 0.0))),
                 new ConverterSvgRect(640, 480),
-                imageHrefResolver: DxfToSvgConverterOptions.CreateDataUriResolver(path => new byte[]
+                imageHrefResolver: DxfToSvgConverterOptions.CreateDataUriResolver(path => Task.FromResult(new byte[]
                 {
                     // content of image doesn't really matter
                     0x01, 0x02, 0x03, 0x04
-                }));
+                })));
             var converter = new DxfToSvgConverter();
-            var xml = image.ToXElement(options);
+            var xml = await image.ToXElement(options);
             var expected = new XElement("g",
                 new XAttribute("transform", "translate(1.0 3.0) scale(1 -1)"),
                 new XElement("image",
@@ -447,10 +448,10 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
-        public void EnsureValidShapeAsBareSvg()
+        public async Task EnsureValidShapeAsBareSvg()
         {
             // svg starts with 5 levels of `g`
-            var element = new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect()));
+            var element = await new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect()));
             Assert.Equal("svg", element.Name.LocalName);
             var g = element.Elements().Single();
             for (int i = 0; i < 5; i++)
@@ -461,9 +462,9 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
-        public void EnsureValidShapeAsDiv()
+        public async Task EnsureValidShapeAsDiv()
         {
-            var element = new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect(), svgId: "test-id"));
+            var element = await new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect(), svgId: "test-id"));
             Assert.Equal("div", element.Name.LocalName);
             Assert.Equal("test-id", element.Attribute("id").Value);
             var children = element.Elements().ToList();

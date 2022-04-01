@@ -1,7 +1,9 @@
-﻿namespace IxMilia.Converters
+﻿using System.Threading.Tasks;
+
+namespace IxMilia.Converters
 {
     public interface IConverter<TSource, TDest, TConvertOptions>
     {
-        TDest Convert(TSource source, TConvertOptions options);
+        Task<TDest> Convert(TSource source, TConvertOptions options);
     }
 }
