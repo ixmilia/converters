@@ -436,7 +436,7 @@ namespace IxMilia.Converters
             }
 
             var imageSizeDxf = new Vector(image.UVector.Length * image.ImageSize.X, image.VVector.Length * image.ImageSize.Y, 0.0);
-            var imageSizeOnPage = affine.Transform(imageSizeDxf);
+            var imageSizeOnPage = scale.Transform(imageSizeDxf);
             var radians = Math.Atan2(image.UVector.Y, image.UVector.X);
             var degrees = radians * 180.0 / Math.PI;
             var locationOnPage = affine.Transform(new Vector(image.Location.X, image.Location.Y, 0.0));
