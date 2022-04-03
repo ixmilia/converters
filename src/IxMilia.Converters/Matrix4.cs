@@ -269,6 +269,24 @@ namespace IxMilia.Converters
             return this * vector;
         }
 
+        /// <summary>
+        /// Computes the resultant scale of the given vector compontents.
+        /// </summary>
+        public Vector TransformedScale(double scaleX, double scaleY)
+        {
+            return TransformedScale(new Vector(scaleX, scaleY, 0.0));
+        }
+
+        /// <summary>
+        /// Computes the resultant scale of the given vector compontents.
+        /// </summary>
+        public Vector TransformedScale(Vector vector)
+        {
+            var origin = new Vector(0.0, 0.0, 0.0);
+            var result = this.Transform(vector) - this.Transform(origin);
+            return result;
+        }
+
         public Matrix4 Scale(Vector scale)
         {
             return CreateScale(scale) * this;

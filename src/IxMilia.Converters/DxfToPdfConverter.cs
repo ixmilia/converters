@@ -63,7 +63,7 @@ namespace IxMilia.Converters
         public async Task<PdfFile> Convert(DxfFile source, DxfToPdfConverterOptions options)
         {
             // adapted from https://github.com/ixmilia/bcad/blob/main/src/IxMilia.BCad.FileHandlers/Plotting/Pdf/PdfPlotter.cs
-            CreateTransformations(source.ActiveViewPort, options, out Matrix4 scale, out Matrix4 affine);
+            var transform = CreateTransformation(source.ActiveViewPort, options);
             var pdf = new PdfFile();
             var page = new PdfPage(options.PageWidth, options.PageHeight);
             pdf.Pages.Add(page);
@@ -75,7 +75,7 @@ namespace IxMilia.Converters
             {
                 foreach (var image in source.Entities.OfType<DxfImage>().Where(i => i.Layer == layer.Name))
                 {
-                    await TryConvertEntity(image, layer, affine, scale, builder, page, options);
+                    await TryConvertEntity(image, layer, transform, builder, page, options);
                 }
             }
 
@@ -84,7 +84,7 @@ namespace IxMilia.Converters
             {
                 foreach (var entity in source.Entities.Where(e => e.Layer == layer.Name && e.EntityType != DxfEntityType.Image))
                 {
-                    await TryConvertEntity(entity, layer, affine, scale, builder, page, options);
+                    await TryConvertEntity(entity, layer, transform, builder, page, options);
                     // if that failed, emit some diagnostic hint? Callback?
                 }
             }
@@ -105,9 +105,9 @@ namespace IxMilia.Converters
         /// <param name="options">The converter options.</param>
         /// <param name="scale">[out] The (relative) scale transform.</param>
         /// <param name="affine">[out] The (absolute) affine transform including scale.</param>
-        private static void CreateTransformations(DxfViewPort viewPort, DxfToPdfConverterOptions options,
-            out Matrix4 scale, out Matrix4 affine)
+        private static Matrix4 CreateTransformation(DxfViewPort viewPort, DxfToPdfConverterOptions options)
         {
+            Matrix4 result;
             if (options.DxfRect != null && options.PdfRect != null)
             {
                 // user supplied source and destination rectangles, no trouble with units
@@ -118,52 +118,54 @@ namespace IxMilia.Converters
                 double scaleY = options.PdfRect.Height.AsPoints() / dxfRect.Height;
                 double dxfOffsetX = dxfRect.Left;
                 double dxfOffsetY = dxfRect.Bottom;
-                scale = Matrix4.CreateScale(scaleX, scaleY, 0.0);
-                affine = Matrix4.CreateTranslate(+pdfOffsetX, +pdfOffsetY, 0.0)
-                    * scale
+                result = Matrix4.CreateTranslate(+pdfOffsetX, +pdfOffsetY, 0.0)
+                    * Matrix4.CreateScale(scaleX, scaleY, 0.0)
                     * Matrix4.CreateTranslate(-dxfOffsetX, -dxfOffsetY, 0.0);
-                return;
             }
-            // TODO this code assumes DXF unit inch - use actual unit from header instead!
-            // scale depends on the unit, output "pdf points" with 72 DPI
-            const double dotsPerInch = 72;
-            scale = Matrix4.CreateScale(options.Scale * dotsPerInch, options.Scale * dotsPerInch, 0.0);
-            affine = Matrix4.Identity
-                * scale
-                * Matrix4.CreateTranslate(-viewPort.LowerLeft.X, -viewPort.LowerLeft.Y, 0.0);
+            else
+            {
+                // TODO this code assumes DXF unit inch - use actual unit from header instead!
+                // scale depends on the unit, output "pdf points" with 72 DPI
+                const double dotsPerInch = 72;
+                result = Matrix4.Identity
+                    * Matrix4.CreateScale(options.Scale * dotsPerInch, options.Scale * dotsPerInch, 0.0)
+                    * Matrix4.CreateTranslate(-viewPort.LowerLeft.X, -viewPort.LowerLeft.Y, 0.0);
+            }
+
+            return result;
         }
 
         #region Entity Conversions
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static async Task<bool> TryConvertEntity(DxfEntity entity, DxfLayer layer, Matrix4 affine, Matrix4 scale, PdfPathBuilder builder, PdfPage page, DxfToPdfConverterOptions options)
+        internal static async Task<bool> TryConvertEntity(DxfEntity entity, DxfLayer layer, Matrix4 transform, PdfPathBuilder builder, PdfPage page, DxfToPdfConverterOptions options)
         {
             switch (entity)
             {
                 case DxfText text:
                     // TODO flush path builder and recreate
-                    page.Items.Add(ConvertText(text, layer, affine, scale));
+                    page.Items.Add(ConvertText(text, layer, transform));
                     return true;
                 case DxfLine line:
-                    Add(ConvertLine(line, layer, affine), builder);
+                    Add(ConvertLine(line, layer, transform), builder);
                     return true;
                 case DxfModelPoint point:
-                    Add(ConvertPoint(point, layer, affine, scale), builder);
+                    Add(ConvertPoint(point, layer, transform), builder);
                     return true;
                 case DxfArc arc:
-                    Add(ConvertArc(arc, layer, affine, scale), builder);
+                    Add(ConvertArc(arc, layer, transform), builder);
                     return true;
                 case DxfCircle circle:
-                    Add(ConvertCircle(circle, layer, affine, scale), builder);
+                    Add(ConvertCircle(circle, layer, transform), builder);
                     return true;
                 case DxfLwPolyline lwPolyline:
-                    Add(ConvertLwPolyline(lwPolyline, layer, affine, scale), builder);
+                    Add(ConvertLwPolyline(lwPolyline, layer, transform), builder);
                     return true;
                 case DxfPolyline polyline:
-                    Add(ConvertPolyline(polyline, layer, affine, scale), builder);
+                    Add(ConvertPolyline(polyline, layer, transform), builder);
                     return true;
                 case DxfImage image:
-                    var imageItem = await TryConvertImage(image, layer, affine, scale, options);
+                    var imageItem = await TryConvertImage(image, layer, transform, options);
                     if (imageItem != null)
                     {
                         // TODO flush path builder and recreate
@@ -188,7 +190,7 @@ namespace IxMilia.Converters
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static PdfText ConvertText(DxfText text, DxfLayer layer, Matrix4 affine, Matrix4 scale)
+        private static PdfText ConvertText(DxfText text, DxfLayer layer, Matrix4 transform)
         {
             // TODO horizontal and vertical justification (manual calculation for PDF, measure text?)
             // TODO Thickness, Rotation, TextStyleName, SecondAlignmentPoint
@@ -196,17 +198,16 @@ namespace IxMilia.Converters
             // TODO RelativeXScaleFactor
             // TODO TextHeight unit? Same as other scale?
             // TODO TextStyleName probably maps to something meaningfull (bold, italic, etc?)
-            PdfMeasurement fontSize = scale.Transform(new Vector(0, text.TextHeight, 0))
-                .ToPdfPoint(PdfMeasurementType.Point).Y;
-            PdfPoint location = affine.Transform(text.Location).ToPdfPoint(PdfMeasurementType.Point);
+            var fontSize = transform.TransformedScale(0.0, text.TextHeight).ToPdfPoint(PdfMeasurementType.Point).Y;
+            PdfPoint location = transform.Transform(text.Location).ToPdfPoint(PdfMeasurementType.Point);
             var pdfStreamState = new PdfStreamState(GetPdfColor(text, layer));
             return new PdfText(text.Value, Font, fontSize, location, pdfStreamState);
         }
 
-        private static IEnumerable<IPdfPathItem> ConvertPoint(DxfModelPoint point, DxfLayer layer, Matrix4 affine, Matrix4 scale)
+        private static IEnumerable<IPdfPathItem> ConvertPoint(DxfModelPoint point, DxfLayer layer, Matrix4 transform)
         {
-            var p = affine.Transform(point.Location).ToPdfPoint(PdfMeasurementType.Point);
-            var thickness = scale.Transform(new Vector(point.Thickness, 0, 0)).ToPdfPoint(PdfMeasurementType.Point).X;
+            var p = transform.Transform(point.Location).ToPdfPoint(PdfMeasurementType.Point);
+            var thickness = transform.TransformedScale(point.Thickness, 0.0).ToPdfPoint(PdfMeasurementType.Point).X;
             if (thickness.RawValue < 1)
             {
                 thickness = PdfMeasurement.Points(1);
@@ -219,10 +220,10 @@ namespace IxMilia.Converters
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertLine(DxfLine line, DxfLayer layer, Matrix4 affine)
+        private static IEnumerable<IPdfPathItem> ConvertLine(DxfLine line, DxfLayer layer, Matrix4 transform)
         {
-            var p1 = affine.Transform(line.P1).ToPdfPoint(PdfMeasurementType.Point);
-            var p2 = affine.Transform(line.P2).ToPdfPoint(PdfMeasurementType.Point);
+            var p1 = transform.Transform(line.P1).ToPdfPoint(PdfMeasurementType.Point);
+            var p2 = transform.Transform(line.P2).ToPdfPoint(PdfMeasurementType.Point);
             var pdfStreamState = new PdfStreamState(
                 strokeColor: GetPdfColor(line, layer),
                 strokeWidth: GetStrokeWidth(line, layer));
@@ -230,26 +231,26 @@ namespace IxMilia.Converters
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertCircle(DxfCircle circle, DxfLayer layer, Matrix4 affine, Matrix4 scale)
+        private static IEnumerable<IPdfPathItem> ConvertCircle(DxfCircle circle, DxfLayer layer, Matrix4 transform)
         {
             var pdfStreamState = new PdfStreamState(
                 strokeColor: GetPdfColor(circle, layer),
                 strokeWidth: GetStrokeWidth(circle, layer));
             // a circle becomes an ellipse, unless aspect ratio is kept.
-            var center = affine.Transform(circle.Center).ToPdfPoint(PdfMeasurementType.Point);
-            var radius = scale.Transform(new Vector(circle.Radius, circle.Radius, circle.Radius))
+            var center = transform.Transform(circle.Center).ToPdfPoint(PdfMeasurementType.Point);
+            var radius = transform.TransformedScale(new Vector(circle.Radius, circle.Radius, circle.Radius))
                 .ToPdfPoint(PdfMeasurementType.Point);
             yield return new PdfEllipse(center, radius.X, radius.Y, state: pdfStreamState);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertArc(DxfArc arc, DxfLayer layer, Matrix4 affine, Matrix4 scale)
+        private static IEnumerable<IPdfPathItem> ConvertArc(DxfArc arc, DxfLayer layer, Matrix4 transform)
         {
             var pdfStreamState = new PdfStreamState(
                 strokeColor: GetPdfColor(arc, layer),
                 strokeWidth: GetStrokeWidth(arc, layer));
-            var center = affine.Transform(arc.Center).ToPdfPoint(PdfMeasurementType.Point);
-            var radius = scale.Transform(new Vector(arc.Radius, arc.Radius, arc.Radius))
+            var center = transform.Transform(arc.Center).ToPdfPoint(PdfMeasurementType.Point);
+            var radius = transform.TransformedScale(new Vector(arc.Radius, arc.Radius, arc.Radius))
                 .ToPdfPoint(PdfMeasurementType.Point);
             const double rotation = 0;
             double startAngleRad = arc.StartAngle * Math.PI / 180;
@@ -259,8 +260,7 @@ namespace IxMilia.Converters
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertLwPolyline(DxfLwPolyline lwPolyline, DxfLayer layer,
-            Matrix4 affine, Matrix4 scale)
+        private static IEnumerable<IPdfPathItem> ConvertLwPolyline(DxfLwPolyline lwPolyline, DxfLayer layer, Matrix4 transform)
         {
             var pdfStreamState = new PdfStreamState(
                 strokeColor: GetPdfColor(lwPolyline, layer),
@@ -272,23 +272,22 @@ namespace IxMilia.Converters
             for (int i = 1; i < n; i++)
             {
                 DxfLwPolylineVertex next = vertices[i];
-                yield return ConvertLwPolylineSegment(vertex, next, affine, scale, pdfStreamState);
+                yield return ConvertLwPolylineSegment(vertex, next, transform, pdfStreamState);
                 vertex = next;
             }
             if (lwPolyline.IsClosed)
             {
                 var next = vertices[0];
-                yield return ConvertLwPolylineSegment(vertex, next, affine, scale, pdfStreamState);
+                yield return ConvertLwPolylineSegment(vertex, next, transform, pdfStreamState);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IPdfPathItem ConvertLwPolylineSegment(DxfLwPolylineVertex vertex, DxfLwPolylineVertex next, Matrix4 affine,
-            Matrix4 scale, PdfStreamState pdfStreamState)
+        private static IPdfPathItem ConvertLwPolylineSegment(DxfLwPolylineVertex vertex, DxfLwPolylineVertex next, Matrix4 transform, PdfStreamState pdfStreamState)
         {
-            var p1 = affine.Transform(new Vector(vertex.X, vertex.Y, 0))
+            var p1 = transform.Transform(new Vector(vertex.X, vertex.Y, 0))
                 .ToPdfPoint(PdfMeasurementType.Point);
-            var p2 = affine.Transform(new Vector(next.X, next.Y, 0))
+            var p2 = transform.Transform(new Vector(next.X, next.Y, 0))
                 .ToPdfPoint(PdfMeasurementType.Point);
             if (vertex.Bulge.IsCloseTo(0.0))
             {
@@ -328,15 +327,15 @@ namespace IxMilia.Converters
             }
 
             // transform to PDF coordinate system
-            var center = affine.Transform(new Vector(cx, cy, 0)).ToPdfPoint(PdfMeasurementType.Point);
-            var pdfRadius = scale.Transform(new Vector(radius, radius, radius)).ToPdfPoint(PdfMeasurementType.Point);
+            var center = transform.Transform(new Vector(cx, cy, 0)).ToPdfPoint(PdfMeasurementType.Point);
+            var pdfRadius = transform.TransformedScale(new Vector(radius, radius, radius)).ToPdfPoint(PdfMeasurementType.Point);
             const double rotation = 0;
             return new PdfEllipse(center, pdfRadius.X, pdfRadius.Y, rotation,
                 startAngle, endAngle, pdfStreamState);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IEnumerable<IPdfPathItem> ConvertPolyline(DxfPolyline polyline, DxfLayer layer, Matrix4 affine, Matrix4 scale)
+        private static IEnumerable<IPdfPathItem> ConvertPolyline(DxfPolyline polyline, DxfLayer layer, Matrix4 transform)
         {
             var pdfStreamState = new PdfStreamState(
                 strokeColor: GetPdfColor(polyline, layer),
@@ -347,23 +346,22 @@ namespace IxMilia.Converters
             for (int i = 1; i < n; i++)
             {
                 var next = vertices[i];
-                yield return ConvertPolylineSegment(vertex, next, affine, scale, pdfStreamState);
+                yield return ConvertPolylineSegment(vertex, next, transform, pdfStreamState);
                 vertex = next;
             }
             if (polyline.IsClosed)
             {
                 var next = vertices[0];
-                yield return ConvertPolylineSegment(vertex, next, affine, scale, pdfStreamState);
+                yield return ConvertPolylineSegment(vertex, next, transform, pdfStreamState);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IPdfPathItem ConvertPolylineSegment(DxfVertex vertex, DxfVertex next, Matrix4 affine,
-            Matrix4 scale, PdfStreamState pdfStreamState)
+        private static IPdfPathItem ConvertPolylineSegment(DxfVertex vertex, DxfVertex next, Matrix4 transform, PdfStreamState pdfStreamState)
         {
-            var p1 = affine.Transform(new Vector(vertex.Location.X, vertex.Location.Y, 0))
+            var p1 = transform.Transform(new Vector(vertex.Location.X, vertex.Location.Y, 0))
                 .ToPdfPoint(PdfMeasurementType.Point);
-            var p2 = affine.Transform(new Vector(next.Location.X, next.Location.Y, 0))
+            var p2 = transform.Transform(new Vector(next.Location.X, next.Location.Y, 0))
                 .ToPdfPoint(PdfMeasurementType.Point);
             if (vertex.Bulge.IsCloseTo(0.0))
             {
@@ -403,14 +401,14 @@ namespace IxMilia.Converters
             }
 
             // transform to PDF coordinate system
-            var center = affine.Transform(new Vector(cx, cy, 0)).ToPdfPoint(PdfMeasurementType.Point);
-            var pdfRadius = scale.Transform(new Vector(radius, radius, radius)).ToPdfPoint(PdfMeasurementType.Point);
+            var center = transform.Transform(new Vector(cx, cy, 0)).ToPdfPoint(PdfMeasurementType.Point);
+            var pdfRadius = transform.TransformedScale(new Vector(radius, radius, radius)).ToPdfPoint(PdfMeasurementType.Point);
             const double rotation = 0;
             return new PdfEllipse(center, pdfRadius.X, pdfRadius.Y, rotation,
                 startAngle, endAngle, pdfStreamState);
         }
 
-        private static async Task<PdfImageItem> TryConvertImage(DxfImage image, DxfLayer layer, Matrix4 affine, Matrix4 scale, DxfToPdfConverterOptions options)
+        private static async Task<PdfImageItem> TryConvertImage(DxfImage image, DxfLayer layer, Matrix4 transform, DxfToPdfConverterOptions options)
         {
             // prepare image decoders
             IPdfEncoder[] encoders = Array.Empty<IPdfEncoder>();
@@ -436,15 +434,18 @@ namespace IxMilia.Converters
             }
 
             var imageSizeDxf = new Vector(image.UVector.Length * image.ImageSize.X, image.VVector.Length * image.ImageSize.Y, 0.0);
-            var imageSizeOnPage = scale.Transform(imageSizeDxf);
+            var imageSizeOnPage = transform.TransformedScale(imageSizeDxf);
             var radians = Math.Atan2(image.UVector.Y, image.UVector.X);
             var degrees = radians * 180.0 / Math.PI;
-            var locationOnPage = affine.Transform(new Vector(image.Location.X, image.Location.Y, 0.0));
-            var transform = Matrix4.CreateTranslate(locationOnPage) * Matrix4.RotateAboutZ(degrees) * Matrix4.CreateScale(imageSizeOnPage.X, imageSizeOnPage.Y, 1.0);
+            var locationOnPage = transform.Transform(new Vector(image.Location.X, image.Location.Y, 0.0));
+            var imageTransform =
+                Matrix4.CreateTranslate(locationOnPage) *
+                Matrix4.CreateScale(imageSizeOnPage.X, imageSizeOnPage.Y, 1.0) *
+                Matrix4.RotateAboutZ(degrees);
             var colorSpace = PdfColorSpace.DeviceRGB; // TODO: read from image
             var bitsPerComponent = 8; // TODO: read from image
             var imageObject = new PdfImageObject((int)image.ImageSize.X, (int)image.ImageSize.Y, colorSpace, bitsPerComponent, imageBytes, encoders);
-            var imageItem = new PdfImageItem(imageObject, transform.ToPdfMatrix());
+            var imageItem = new PdfImageItem(imageObject, imageTransform.ToPdfMatrix());
             return imageItem;
         }
 
