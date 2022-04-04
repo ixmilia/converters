@@ -436,14 +436,12 @@ namespace IxMilia.Converters.Test
                 })));
             var converter = new DxfToSvgConverter();
             var xml = await image.ToXElement(options);
-            var expected = new XElement("g",
-                new XAttribute("transform", "translate(1.0 3.0) scale(1 -1)"),
-                new XElement("image",
-                    new XAttribute("href", "data:image/jpeg;base64,AQIDBA=="),
-                    new XAttribute("width", "2.0"),
-                    new XAttribute("height", "2.0"),
-                    new XAttribute("transform", "rotate(-0.0)"),
-                    new XAttribute("vector-effect", "non-scaling-stroke")));
+            var expected = new XElement("image",
+                new XAttribute("href", "data:image/jpeg;base64,AQIDBA=="),
+                new XAttribute("width", "2.0"),
+                new XAttribute("height", "2.0"),
+                new XAttribute("transform", "translate(1.0 3.0) scale(1 -1) rotate(-0.0)"),
+                new XAttribute("vector-effect", "non-scaling-stroke"));
             AssertXElement(expected, xml);
         }
 

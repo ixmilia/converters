@@ -359,15 +359,13 @@ namespace IxMilia.Converters
             var displayRotationDegrees = -radians * 180.0 / Math.PI;
             var topLeftDxf = image.Location + upVector;
             var insertLocation = topLeftDxf;
-            return new XElement(DxfToSvgConverter.Xmlns + "g",
-                new XAttribute("transform", $"translate({insertLocation.X.ToDisplayString()} {insertLocation.Y.ToDisplayString()}) scale(1 -1)"),
-                new XElement(DxfToSvgConverter.Xmlns + "image",
-                    new XAttribute("href", imageHref),
-                    new XAttribute("width", imageWidth.ToDisplayString()),
-                    new XAttribute("height", imageHeight.ToDisplayString()),
-                    new XAttribute("transform", $"rotate({displayRotationDegrees.ToDisplayString()})"))
-                    .AddStroke(image.Color)
-                    .AddVectorEffect());
+            return new XElement(DxfToSvgConverter.Xmlns + "image",
+                new XAttribute("href", imageHref),
+                new XAttribute("width", imageWidth.ToDisplayString()),
+                new XAttribute("height", imageHeight.ToDisplayString()),
+                new XAttribute("transform", $"translate({insertLocation.X.ToDisplayString()} {insertLocation.Y.ToDisplayString()}) scale(1 -1) rotate({displayRotationDegrees.ToDisplayString()})"))
+                .AddStroke(image.Color)
+                .AddVectorEffect();
         }
 
         public static XElement ToXElement(this DxfLine line)
