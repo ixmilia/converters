@@ -11,7 +11,7 @@
     <Authors>IxMilia</Authors>
     <Description>A portable .NET library for converting between various CAD file types.</Description>
     <PackageProjectUrl>https://github.com/ixmilia/converters</PackageProjectUrl>
-    <PackageTags>AutoCAD;DXF;PDF</PackageTags>
+    <PackageTags>AutoCAD;DWG;DXF;PDF</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
@@ -26,12 +26,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\IxMilia.Dwg\src\IxMilia.Dwg\IxMilia.Dwg.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\IxMilia.Dxf\src\IxMilia.Dxf\IxMilia.Dxf.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\IxMilia.Pdf\src\IxMilia.Pdf\IxMilia.Pdf.csproj" PrivateAssets="all" />
   </ItemGroup>
 
   <Target Name="IncludeP2POutput">
     <ItemGroup>
+      <BuildOutputInPackage Include="$(OutputPath)IxMilia.Dwg.dll" />
       <BuildOutputInPackage Include="$(OutputPath)IxMilia.Dxf.dll" />
       <BuildOutputInPackage Include="$(OutputPath)IxMilia.Pdf.dll" />
     </ItemGroup>

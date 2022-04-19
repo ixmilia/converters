@@ -1,3 +1,7 @@
+[submodule "src/IxMilia.Dwg"]
+	path = src/IxMilia.Dwg
+	url = https://github.com/ixmilia/dwg
+	branch = main
 [submodule "src/IxMilia.Dxf"]
 	path = src/IxMilia.Dxf
 	url = https://github.com/ixmilia/dxf
