@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using IxMilia.Dwg;
 using IxMilia.Dxf;
@@ -11,10 +12,18 @@ namespace IxMilia.Converters.Test
     {
         // very specific tests exist in both `DwgToDxfTests.cs` and `DxfToDwgTests.cs`, but most of the coverage can be
         // "free" if drawings are round-tripped
-        private static async Task<DxfFile> RoundTrip(DxfFile dxf)
+        private static async Task<DxfFile> RoundTrip(DxfFile dxf, bool roundTripThroughStreams = false)
         {
             var dwgConverter = new DxfToDwgConverter();
             var dwg = await dwgConverter.Convert(dxf, new DxfToDwgConverterOptions(DwgVersionId.R14));
+
+            if (roundTripThroughStreams)
+            {
+                using var ms = new MemoryStream();
+                dwg.Save(ms);
+                ms.Seek(0, SeekOrigin.Begin);
+                dwg = DwgDrawing.Load(ms);
+            }
 
             var dxfConverter = new DwgToDxfConverter();
             var roundTrippedDxf = await dxfConverter.Convert(dwg, new DwgToDxfConverterOptions(dxf.Header.Version));
@@ -45,6 +54,21 @@ namespace IxMilia.Converters.Test
             Assert.Equal(e1.LineTypeName, e2.LineTypeName);
             Assert.Equal(e1.LineTypeScale, e2.LineTypeScale);
             Assert.Equal(e1.Transparency, e2.Transparency);
+        }
+
+        [Fact]
+        public async Task RoundTripMultiplEntities()
+        {
+            var dxf = new DxfFile();
+            dxf.Entities.Add(new DxfArc());
+            dxf.Entities.Add(new DxfCircle());
+            dxf.Entities.Add(new DxfLine());
+
+            var roundTrippedDxf = await RoundTrip(dxf, roundTripThroughStreams: true);
+            Assert.Equal(3, roundTrippedDxf.Entities.Count);
+            Assert.IsType<DxfArc>(roundTrippedDxf.Entities[0]);
+            Assert.IsType<DxfCircle>(roundTrippedDxf.Entities[1]);
+            Assert.IsType<DxfLine>(roundTrippedDxf.Entities[2]);
         }
 
         [Fact]
