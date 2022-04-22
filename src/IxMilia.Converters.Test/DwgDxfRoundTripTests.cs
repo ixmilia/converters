@@ -43,6 +43,17 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
+        public async Task RoundTripActiveViewPort()
+        {
+            var d1 = new DxfFile();
+            d1.ActiveViewPort.LowerLeft = new DxfPoint(1.0, 2.0, 3.0);
+            d1.ActiveViewPort.ViewHeight = 10.0;
+            var d2 = await RoundTrip(d1);
+            Assert.Equal(d1.ActiveViewPort.LowerLeft, d2.ActiveViewPort.LowerLeft);
+            Assert.Equal(d1.ActiveViewPort.ViewHeight, d2.ActiveViewPort.ViewHeight);
+        }
+
+        [Fact]
         public async Task RoundTripCommonEntityValues()
         {
             var e1 = new DxfLine();

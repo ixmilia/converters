@@ -24,6 +24,9 @@ namespace IxMilia.Converters
             result.Header.Version = options.TargetVersion;
             result.Header.CurrentLayer = source.CurrentLayer.Name;
 
+            result.ActiveViewPort.LowerLeft = source.ViewPorts["*ACTIVE"].LowerLeft.ToDxfPoint();
+            result.ActiveViewPort.ViewHeight = source.ViewPorts["*ACTIVE"].Height;
+
             // TODO: convert the other things
             foreach (var layer in source.Layers.Values)
             {

@@ -27,11 +27,21 @@ namespace IxMilia.Converters
 
             // TODO: all the other things like header values, etc.
 
+            ConvertActiveViewPortSettings(source, target);
             ConvertLineTypes(source, target);
             ConvertLayers(source, target);
             ConvertEntities(source, target);
 
             return Task.FromResult(target);
+        }
+
+        private static void ConvertActiveViewPortSettings(DxfFile source, DwgDrawing target)
+        {
+            if (source.ActiveViewPort is object)
+            {
+                target.ViewPorts["*ACTIVE"].LowerLeft = source.ActiveViewPort.LowerLeft.ToDwgPoint();
+                target.ViewPorts["*ACTIVE"].Height = source.ActiveViewPort.ViewHeight;
+            }
         }
 
         private static void ConvertLineTypes(DxfFile source, DwgDrawing target)
