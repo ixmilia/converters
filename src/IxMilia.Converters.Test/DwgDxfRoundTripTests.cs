@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using IxMilia.Dwg;
@@ -96,6 +97,19 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
+        public async Task RoundTripEllipse()
+        {
+            var e1 = new DxfEllipse(new DxfPoint(1.0, 2.0, 3.0), new DxfVector(1.0, 0.0, 0.0), 0.5) { StartParameter = 0.0, EndParameter = Math.PI };
+            var e2 = await RoundTrip(e1);
+            Assert.Equal(e1.Center, e2.Center);
+            Assert.Equal(e1.MajorAxis, e2.MajorAxis);
+            Assert.Equal(e1.MinorAxisRatio, e2.MinorAxisRatio);
+            Assert.Equal(e1.StartParameter, e2.StartParameter);
+            Assert.Equal(e1.EndParameter, e2.EndParameter);
+            Assert.Equal(e1.Normal, e2.Normal);
+        }
+
+        [Fact]
         public async Task RoundTripLine()
         {
             var e1 = new DxfLine(new DxfPoint(1.0, 2.0, 3.0), new DxfPoint(4.0, 5.0, 6.0)) { Thickness = 7.0 };
@@ -103,6 +117,91 @@ namespace IxMilia.Converters.Test
             Assert.Equal(e1.P1, e2.P1);
             Assert.Equal(e1.P2, e2.P2);
             Assert.Equal(e1.Thickness, e2.Thickness);
+        }
+
+        [Fact]
+        public async Task RoundTripLocation()
+        {
+            var e1 = new DxfModelPoint(new DxfPoint(1.0, 2.0, 3.0)) { Thickness = 4.0 };
+            var e2 = await RoundTrip(e1);
+            Assert.Equal(e1.Location, e2.Location);
+            Assert.Equal(e1.Thickness, e2.Thickness);
+        }
+
+        [Fact]
+        public async Task RoundTripLwPolyline()
+        {
+            var e1 = new DxfLwPolyline(new[]
+            {
+                new DxfLwPolylineVertex() { X = 1.0, Y = 2.0, StartingWidth = 0.0, EndingWidth = 0.0, Bulge = 0.0 },
+                new DxfLwPolylineVertex() { X = 3.0, Y = 4.0, StartingWidth = 0.0, EndingWidth = 0.0, Bulge = 0.0 },
+            })
+            {
+                Thickness = 5.0,
+            };
+            var e2 = await RoundTrip(e1);
+            Assert.Equal(e1.Vertices.Count, e2.Vertices.Count);
+            foreach (var pair in e1.Vertices.Zip(e2.Vertices))
+            {
+                Assert.Equal(pair.First.X, pair.Second.X);
+                Assert.Equal(pair.First.Y, pair.Second.Y);
+                Assert.Equal(pair.First.StartingWidth, pair.Second.StartingWidth);
+                Assert.Equal(pair.First.EndingWidth, pair.Second.EndingWidth);
+                Assert.Equal(pair.First.Bulge, pair.Second.Bulge);
+            }
+
+            Assert.Equal(e1.Thickness, e2.Thickness);
+        }
+
+        [Fact]
+        public async Task RoundTripPolyline()
+        {
+            var e1 = new DxfPolyline(new[]
+            {
+                new DxfVertex(new DxfPoint(1.0, 2.0, 0.0)),
+                new DxfVertex(new DxfPoint(3.0, 4.0, 0.0)),
+            });
+            var e2 = await RoundTrip(e1);
+            Assert.Equal(e1.Vertices.Count, e2.Vertices.Count);
+            for (int i = 0; i < e1.Vertices.Count; i++)
+            {
+                Assert.Equal(e1.Vertices[i].Location, e2.Vertices[i].Location);
+            }
+        }
+
+        [Fact]
+        public async Task RoundTripSpline()
+        {
+            var e1 = new DxfSpline()
+            {
+                DegreeOfCurve = 3
+            };
+            e1.ControlPoints.Add(new DxfControlPoint(new DxfPoint(3.0, 0.0, 0.0)));
+            e1.ControlPoints.Add(new DxfControlPoint(new DxfPoint(4.0, 0.0, 0.0)));
+            e1.ControlPoints.Add(new DxfControlPoint(new DxfPoint(4.0, 0.0, 0.0)));
+            e1.ControlPoints.Add(new DxfControlPoint(new DxfPoint(4.0, 1.0, 0.0)));
+            e1.KnotValues.Add(0.0);
+            e1.KnotValues.Add(0.0);
+            e1.KnotValues.Add(0.0);
+            e1.KnotValues.Add(0.0);
+            e1.KnotValues.Add(1.0);
+            e1.KnotValues.Add(1.0);
+            e1.KnotValues.Add(1.0);
+            e1.KnotValues.Add(1.0);
+            var e2 = await RoundTrip(e1);
+            Assert.Equal(e1.DegreeOfCurve, e2.DegreeOfCurve);
+            Assert.Equal(e1.ControlPoints, e2.ControlPoints);
+            Assert.Equal(e1.KnotValues, e2.KnotValues);
+        }
+
+        [Fact]
+        public async Task RoundTripText()
+        {
+            var e1 = new DxfText(new DxfPoint(0.0, -1.0, 0.0), 1.0, "abcd");
+            var e2 = await RoundTrip(e1);
+            Assert.Equal(e1.Location, e2.Location);
+            Assert.Equal(e1.TextHeight, e2.TextHeight);
+            Assert.Equal(e1.Value, e2.Value);
         }
     }
 }

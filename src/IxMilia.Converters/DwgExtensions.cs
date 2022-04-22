@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using IxMilia.Dwg;
 using IxMilia.Dwg.Objects;
 using IxMilia.Dxf;
@@ -34,6 +35,16 @@ namespace IxMilia.Converters
             }.WithCommonProperties(circle);
         }
 
+        public static DxfEllipse ToDxfEllipse(this DwgEllipse ellipse)
+        {
+            return new DxfEllipse(ellipse.Center.ToDxfPoint(), ellipse.MajorAxis.ToDxfVector(), ellipse.MinorAxisRatio)
+            {
+                StartParameter = ellipse.StartAngle,
+                EndParameter = ellipse.EndAngle,
+                Normal = ellipse.Extrusion.ToDxfVector(),
+            }.WithCommonProperties(ellipse);
+        }
+
         public static DxfLine ToDxfLine(this DwgLine line)
         {
             return new DxfLine(line.P1.ToDxfPoint(), line.P2.ToDxfPoint())
@@ -41,6 +52,79 @@ namespace IxMilia.Converters
                 ExtrusionDirection = line.Extrusion.ToDxfVector(),
                 Thickness = line.Thickness,
             }.WithCommonProperties(line);
+        }
+
+        public static DxfModelPoint ToDxfModelPoint(this DwgLocation location)
+        {
+            return new DxfModelPoint(location.Point.ToDxfPoint())
+            {
+                Thickness = location.Thickness
+            }.WithCommonProperties(location);
+        }
+
+        public static DxfLwPolyline ToDxfLwPolyline(this DwgLwPolyline lwpolyline)
+        {
+            return new DxfLwPolyline(lwpolyline.Vertices.Select(v => new DxfLwPolylineVertex() { X = v.X, Y = v.Y, StartingWidth = v.StartWidth, EndingWidth = v.EndWidth, Bulge = v.Bulge }))
+            {
+                Thickness = lwpolyline.Thickness,
+            }.WithCommonProperties(lwpolyline);
+        }
+
+        public static DxfPolyline ToDxfPolyline(this DwgPolyline2D polyline)
+        {
+            return new DxfPolyline(polyline.Vertices.Select(v => new DxfVertex(v.Point.ToDxfPoint()) { StartingWidth = v.StartWidth, EndingWidth = v.EndWidth, Bulge = v.Bulge }))
+            {
+                Is3DPolyline = false,
+                Thickness = polyline.Thickness,
+                Normal = polyline.Extrusion.ToDxfVector(),
+            }.WithCommonProperties(polyline);
+        }
+
+        public static DxfPolyline ToDxfPolyline(this DwgPolyline3D polyline)
+        {
+            return new DxfPolyline(polyline.Vertices.Select(v => new DxfVertex(v.Point.ToDxfPoint())))
+            {
+                Is3DPolyline = true,
+            }.WithCommonProperties(polyline);
+        }
+
+        public static DxfSpline ToDxfSpline(this DwgSpline spline)
+        {
+            var result = new DxfSpline()
+            {
+                DegreeOfCurve = spline.Degree,
+                ControlPointTolerance = spline.ControlTolerance,
+                FitTolerance = spline.FitTolerance,
+                KnotTolerance = spline.KnotTolerance,
+            }.WithCommonProperties(spline);
+            foreach (var cp in spline.ControlPoints)
+            {
+                result.ControlPoints.Add(new DxfControlPoint(cp.Point.ToDxfPoint(), cp.Weight));
+            }
+
+            foreach (var fp in spline.FitPoints)
+            {
+                result.FitPoints.Add(fp.ToDxfPoint());
+            }
+
+            foreach (var k in spline.KnotValues)
+            {
+                result.KnotValues.Add(k);
+            }
+
+            return result;
+        }
+
+        public static DxfText ToDxfText(this DwgText text)
+        {
+            return new DxfText(text.InsertionPoint.ToDxfPoint(), text.Height, text.Value)
+            {
+                Elevation = text.Elevation,
+                Normal = text.Extrusion.ToDxfVector(),
+                HorizontalTextJustification = (DxfHorizontalTextJustification)text.HorizontalAlignment,
+                VerticalTextJustification = (DxfVerticalTextJustification)text.VerticalAlignment,
+                Rotation = text.RotationAngle,
+            }.WithCommonProperties(text);
         }
 
         public static TDxfEntity WithCommonProperties<TDxfEntity>(this TDxfEntity entity, DwgEntity parent) where TDxfEntity : DxfEntity

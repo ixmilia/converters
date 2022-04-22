@@ -22,6 +22,12 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+# IxMilia.Dwg needs a custom invocation to generate code
+pwsh ./src/IxMilia.Dwg/build-and-test.ps1 --notest --configuration $CONFIGURATION
+
+# IxMilia.Dxf needs a custom invocation to generate code
+./src/IxMilia.Dxf/build-and-test.sh --notest --configuration $CONFIGURATION
+
 # build
 SOLUTION=$_SCRIPT_DIR/IxMilia.Converters.sln
 dotnet restore $SOLUTION

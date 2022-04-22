@@ -79,8 +79,26 @@ namespace IxMilia.Converters
                     case DxfCircle circle:
                         AddToDrawing(circle.ToDwgCircle(), circle.Layer, entity.LineTypeName);
                         break;
+                    case DxfEllipse ellipse:
+                        AddToDrawing(ellipse.ToDwgEllipse(), ellipse.Layer, ellipse.LineTypeName);
+                        break;
                     case DxfLine line:
                         AddToDrawing(line.ToDwgLine(), line.Layer, entity.LineTypeName);
+                        break;
+                    case DxfModelPoint modelPoint:
+                        AddToDrawing(modelPoint.ToDwgLocation(), modelPoint.Layer, entity.LineTypeName);
+                        break;
+                    case DxfLwPolyline lwpolyline:
+                        AddToDrawing(lwpolyline.ToDwgLwPolyline(), lwpolyline.Layer, entity.LineTypeName);
+                        break;
+                    case DxfPolyline polyline:
+                        AddToDrawing(polyline.ToDwgPolyline(), polyline.Layer, entity.LineTypeName);
+                        break;
+                    case DxfSpline spline:
+                        AddToDrawing(spline.ToDwgSpline(), spline.Layer, entity.LineTypeName);
+                        break;
+                    case DxfText text:
+                        AddToDrawing(text.ToDwgText(), text.Layer, text.LineTypeName);
                         break;
                     default:
                         // TODO: everything else

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using IxMilia.Dwg;
 using IxMilia.Dwg.Objects;
 using IxMilia.Dxf;
@@ -42,6 +43,14 @@ namespace IxMilia.Converters
             }.WithCommonProperties(circle);
         }
 
+        public static DwgEllipse ToDwgEllipse(this DxfEllipse ellipse)
+        {
+            return new DwgEllipse(ellipse.Center.ToDwgPoint(), ellipse.MajorAxis.ToDwgVector(), ellipse.MinorAxisRatio, ellipse.StartParameter, ellipse.EndParameter)
+            {
+                Extrusion = ellipse.Normal.ToDwgVector(),
+            };
+        }
+
         public static DwgLine ToDwgLine(this DxfLine line)
         {
             return new DwgLine(line.P1.ToDwgPoint(), line.P2.ToDwgPoint())
@@ -49,6 +58,78 @@ namespace IxMilia.Converters
                 Extrusion = line.ExtrusionDirection.ToDwgVector(),
                 Thickness = line.Thickness,
             }.WithCommonProperties(line);
+        }
+
+        public static DwgLocation ToDwgLocation(this DxfModelPoint modelPoint)
+        {
+            return new DwgLocation(modelPoint.Location.ToDwgPoint())
+            {
+                Thickness = modelPoint.Thickness,
+            }.WithCommonProperties(modelPoint);
+        }
+
+        public static DwgLwPolyline ToDwgLwPolyline(this DxfLwPolyline lwpolyline)
+        {
+            return new DwgLwPolyline(lwpolyline.Vertices.Select(v => new DwgLwPolylineVertex(v.X, v.Y, v.StartingWidth, v.EndingWidth, v.Bulge)))
+            {
+                Thickness = lwpolyline.Thickness,
+            }.WithCommonProperties(lwpolyline);
+        }
+
+        public static DwgEntity ToDwgPolyline(this DxfPolyline polyline)
+        {
+            if (polyline.Is3DPolyline)
+            {
+                return polyline.ToDwgPolyline3D();
+            }
+            else
+            {
+                return polyline.ToDwgPolyline2D();
+            }
+        }
+
+        private static DwgPolyline2D ToDwgPolyline2D(this DxfPolyline polyline)
+        {
+            return new DwgPolyline2D(polyline.Vertices.Select(v => new DwgVertex2D(v.Location.ToDwgPoint())))
+            {
+                Thickness = polyline.Thickness,
+            }.WithCommonProperties(polyline);
+        }
+
+        private static DwgPolyline3D ToDwgPolyline3D(this DxfPolyline polyline)
+        {
+            return new DwgPolyline3D(polyline.Vertices.Select(v => new DwgVertex3D(v.Location.ToDwgPoint())))
+            {
+                // other properties?
+            }.WithCommonProperties(polyline);
+        }
+
+        public static DwgSpline ToDwgSpline(this DxfSpline spline)
+        {
+            var result = new DwgSpline()
+            {
+                Degree = spline.DegreeOfCurve,
+                ControlTolerance = spline.ControlPointTolerance,
+                FitTolerance = spline.FitTolerance,
+                KnotTolerance = spline.KnotTolerance,
+            }.WithCommonProperties(spline);
+            result.ControlPoints.AddRange(spline.ControlPoints.Select(cp => new DwgControlPoint(cp.Point.ToDwgPoint(), cp.Weight)));
+            result.FitPoints.AddRange(spline.FitPoints.Select(fp => fp.ToDwgPoint()));
+            result.KnotValues.AddRange(spline.KnotValues);
+            return result;
+        }
+
+        public static DwgText ToDwgText(this DxfText text)
+        {
+            return new DwgText(text.Value)
+            {
+                InsertionPoint = text.Location.ToDwgPoint(),
+                Elevation = text.Elevation,
+                Extrusion = text.Normal.ToDwgVector(),
+                HorizontalAlignment = (DwgHorizontalTextJustification)text.HorizontalTextJustification,
+                VerticalAlignment = (DwgVerticalTextJustification)text.VerticalTextJustification,
+                RotationAngle = text.Rotation,
+            }.WithCommonProperties(text);
         }
 
         public static TDwgEntity WithCommonProperties<TDwgEntity>(this TDwgEntity entity, DxfEntity parent) where TDwgEntity : DwgEntity

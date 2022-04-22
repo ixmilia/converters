@@ -41,8 +41,29 @@ namespace IxMilia.Converters
                     case DwgCircle circle:
                         result.Entities.Add(circle.ToDxfCircle());
                         break;
+                    case DwgEllipse ellipse:
+                        result.Entities.Add(ellipse.ToDxfEllipse());
+                        break;
                     case DwgLine line:
                         result.Entities.Add(line.ToDxfLine());
+                        break;
+                    case DwgLocation location:
+                        result.Entities.Add(location.ToDxfModelPoint());
+                        break;
+                    case DwgLwPolyline lwpolyline:
+                        result.Entities.Add(lwpolyline.ToDxfLwPolyline());
+                        break;
+                    case DwgPolyline2D polyline2d:
+                        result.Entities.Add(polyline2d.ToDxfPolyline());
+                        break;
+                    case DwgPolyline3D polyline3d:
+                        result.Entities.Add(polyline3d.ToDxfPolyline());
+                        break;
+                    case DwgSpline spline:
+                        result.Entities.Add(spline.ToDxfSpline());
+                        break;
+                    case DwgText text:
+                        result.Entities.Add(text.ToDxfText());
                         break;
                 }
             }
