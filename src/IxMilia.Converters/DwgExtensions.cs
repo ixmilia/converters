@@ -10,6 +10,19 @@ namespace IxMilia.Converters
     public static class DwgExtensions
     {
         public const double RadiansToDegrees = 180.0 / Math.PI;
+        
+        public static DxfAcadVersion ToDxfVersion(this DwgVersionId version)
+        {
+            switch (version)
+            {
+                case DwgVersionId.R13:
+                    return DxfAcadVersion.R13;
+                case DwgVersionId.R14:
+                    return DxfAcadVersion.R14;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(version));
+            }
+        }
 
         public static DxfColor ToDxfColor(this DwgColor color) => DxfColor.FromRawValue(color.RawValue);
 

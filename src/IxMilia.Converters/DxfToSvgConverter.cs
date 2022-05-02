@@ -12,23 +12,22 @@ using IxMilia.Dxf.Entities;
 
 namespace IxMilia.Converters
 {
-    public struct DxfToSvgConverterOptions
+    public class DxfToSvgConverterOptions
     {
         public ConverterDxfRect DxfRect { get; }
         public ConverterSvgRect SvgRect { get; }
         public string SvgId { get; }
-
-        private Func<string, Task<string>> _imageHrefResolver;
+        public Func<string, Task<string>> ImageHrefResolver { get; }
 
         public DxfToSvgConverterOptions(ConverterDxfRect dxfRect, ConverterSvgRect svgRect, string svgId = null, Func<string, Task<string>> imageHrefResolver = null)
         {
             DxfRect = dxfRect;
             SvgRect = svgRect;
             SvgId = svgId;
-            _imageHrefResolver = imageHrefResolver ?? (href => Task.FromResult(href));
+            ImageHrefResolver = imageHrefResolver ?? (href => Task.FromResult(href));
         }
 
-        public Task<string> ResolveImageHrefAsync(string path) => _imageHrefResolver(path);
+        public Task<string> ResolveImageHrefAsync(string path) => ImageHrefResolver(path);
 
         public static Func<string, Task<string>> CreateDataUriResolver(Func<string, Task<byte[]>> dataResolver)
         {
