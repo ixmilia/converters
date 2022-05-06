@@ -33,6 +33,23 @@ namespace IxMilia.Converters
                 result.Layers.Add(new DxfLayer(layer.Name, layer.Color.ToDxfColor()));
             }
 
+            // line types
+            foreach (var lineType in source.LineTypes.Values)
+            {
+                var dxfLineType = new DxfLineType(lineType.Name)
+                {
+                    Description = lineType.Description,
+                    TotalPatternLength = lineType.PatternLength
+                };
+                foreach (var dashInfo in lineType.DashInfos)
+                {
+                    var dashElement = new DxfLineTypeElement() { DashDotSpaceLength = dashInfo.DashLength };
+                    dxfLineType.Elements.Add(dashElement);
+                }
+
+                result.LineTypes.Add(dxfLineType);
+            }
+
             // entities
             foreach (var entity in source.ModelSpaceBlockRecord.Entities)
             {

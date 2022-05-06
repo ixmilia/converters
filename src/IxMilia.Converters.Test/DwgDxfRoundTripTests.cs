@@ -69,6 +69,22 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
+        public async Task RoundTripCustomLineType()
+        {
+            var d1 = new DxfFile();
+            var lineType = new DxfLineType("custom");
+            lineType.Elements.Add(new DxfLineTypeElement() { DashDotSpaceLength = 0.5 });
+            lineType.Elements.Add(new DxfLineTypeElement() { DashDotSpaceLength = 0.25 });
+            d1.LineTypes.Add(lineType);
+
+            var d2 = await RoundTrip(d1);
+            var roundTrippedLineType = d2.LineTypes.Single(lt => lt.Name == "custom");
+            Assert.Equal(2, roundTrippedLineType.Elements.Count);
+            Assert.Equal(0.5, roundTrippedLineType.Elements[0].DashDotSpaceLength);
+            Assert.Equal(0.25, roundTrippedLineType.Elements[1].DashDotSpaceLength);
+        }
+
+        [Fact]
         public async Task RoundTripMultiplEntities()
         {
             var dxf = new DxfFile();

@@ -53,8 +53,15 @@ namespace IxMilia.Converters
                     Description = lineType.Description,
                     PatternLength = lineType.TotalPatternLength,
                 };
+                foreach (var dashElement in lineType.Elements)
+                {
+                    var dashInfo = new DwgLineType.DwgLineTypeDashInfo(dashElement.DashDotSpaceLength);
+                    dwgLineType.DashInfos.Add(dashInfo);
+                }
+
                 target.LineTypes.Add(dwgLineType);
             }
+
             target.CurrentEntityLineType = target.LineTypeOrCurrent(source.Header.CurrentEntityLineType);
         }
 
