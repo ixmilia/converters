@@ -81,5 +81,16 @@ namespace IxMilia.Converters.Test
             Assert.Equal("layer-that-does-not-exist", line.Layer.Name);
             Assert.Equal("line-type-that-does-not-exist", line.LineType.Name);
         }
+
+        [Fact]
+        public async Task LayersAndLineTypesWithWellKnownNamesAreProperlyCreatedWhenNotDefined()
+        {
+            var dxf = new DxfFile();
+            dxf.Header.CurrentEntityLineType = null;
+            dxf.Header.CurrentLayer = null;
+            var dwg = await Convert(dxf, DwgVersionId.R14);
+            Assert.Equal("0", dwg.CurrentLayer.Name);
+            Assert.Equal("BYBLOCK", dwg.CurrentEntityLineType.Name);
+        }
     }
 }

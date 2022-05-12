@@ -180,7 +180,8 @@ namespace IxMilia.Converters
 
         public static DwgLineType LineTypeOrCurrent(this DwgDrawing drawing, string lineTypeName)
         {
-            if (drawing.LineTypes.TryGetValue(lineTypeName, out var lineType))
+            if (lineTypeName != null &&
+                drawing.LineTypes.TryGetValue(lineTypeName, out var lineType))
             {
                 return lineType;
             }
@@ -190,7 +191,8 @@ namespace IxMilia.Converters
 
         public static DwgLayer LayerOrCurrent(this DwgDrawing drawing, string layerName)
         {
-            if (drawing.Layers.TryGetValue(layerName, out var layer))
+            if (layerName != null &&
+                drawing.Layers.TryGetValue(layerName, out var layer))
             {
                 return layer;
             }

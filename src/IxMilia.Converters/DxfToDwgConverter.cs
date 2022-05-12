@@ -32,6 +32,10 @@ namespace IxMilia.Converters
             ConvertLayers(source, target);
             ConvertEntities(source, target);
 
+            // ensure reference quality, since we may have re-created the objects
+            target.CurrentEntityLineType = target.LineTypes[target.CurrentEntityLineType.Name];
+            target.CurrentLayer = target.Layers[target.CurrentLayer.Name];
+
             return Task.FromResult(target);
         }
 
@@ -62,7 +66,14 @@ namespace IxMilia.Converters
                 target.LineTypes.Add(dwgLineType);
             }
 
-            target.CurrentEntityLineType = target.LineTypeOrCurrent(source.Header.CurrentEntityLineType);
+            if (source.Header.CurrentEntityLineType is object &&
+                !target.LineTypes.ContainsKey(source.Header.CurrentEntityLineType))
+            {
+                // current line type doesn't exist; create it
+                var lineType = target.LineTypeOrCurrent(source.Header.CurrentEntityLineType);
+                target.LineTypes.Add(lineType);
+                target.CurrentEntityLineType = lineType;
+            }
         }
 
         private static void ConvertLayers(DxfFile source, DwgDrawing target)
@@ -76,6 +87,11 @@ namespace IxMilia.Converters
                 };
                 target.Layers.Add(dwgLayer);
             }
+
+            target.EnsureLineType("BYLAYER");
+            target.EnsureLineType("BYBLOCK");
+            target.EnsureLineType("CONTINUOUS");
+            target.EnsureLayer("0", DwgColor.ByLayer, "CONTINUOUS");
 
             target.CurrentLayer = target.LayerOrCurrent(source.Header.CurrentLayer);
             target.ModelSpaceBlockRecord.Block.Layer = target.LayerOrCurrent(target.ModelSpaceBlockRecord.Block.Layer.Name);
