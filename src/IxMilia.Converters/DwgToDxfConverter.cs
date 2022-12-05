@@ -34,6 +34,12 @@ namespace IxMilia.Converters
             // blocks
             foreach (var blockHeader in source.BlockHeaders.Values)
             {
+                if (blockHeader.IsModelSpaceBlock || blockHeader.IsPaperSpaceBlock)
+                {
+                    // these are special-cased elsewhere
+                    continue;
+                }
+
                 var dxfBlock = new DxfBlock()
                 {
                     BasePoint = blockHeader.BasePoint.ToDxfPoint(),

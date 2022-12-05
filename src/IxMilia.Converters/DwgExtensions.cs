@@ -62,8 +62,6 @@ namespace IxMilia.Converters
         {
             return new DxfInsert()
             {
-                Layer = insert.Layer.Name,
-                LineTypeName = insert.LineType?.Name,
                 Location = insert.Location.ToDxfPoint(),
                 Name = insert.BlockHeader.Name,
             }.WithCommonProperties(insert);
@@ -155,8 +153,12 @@ namespace IxMilia.Converters
         {
             entity.Color = parent.Color.ToDxfColor();
             entity.Layer = parent.Layer.Name;
-            entity.LineTypeName = parent.LineType?.Name;
             entity.LineTypeScale = parent.LineTypeScale;
+            if (!string.IsNullOrWhiteSpace(parent.LineType?.Name))
+            {
+                entity.LineTypeName = parent.LineType.Name;
+            }
+
             return entity;
         }
 
