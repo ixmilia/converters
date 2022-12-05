@@ -25,6 +25,8 @@ function Single([string]$pattern) {
 }
 
 try {
+    $runTests = -Not $noTest;
+
     # build dxf submodule
     $shellExt = if ($IsWindows) { "cmd" } else { "sh" }
     Push-Location "$PSScriptRoot\src\IxMilia.Dxf"
@@ -39,7 +41,7 @@ try {
     dotnet restore || Fail "Error restoring packages"
     dotnet build --configuration $configuration || Fail "Error building"
 
-    if (-Not $noTest) {
+    if ($runTests) {
         dotnet test --no-restore --no-build --configuration $configuration || Fail "Error running tests"
     }
 
