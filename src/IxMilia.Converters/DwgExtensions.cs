@@ -58,6 +58,17 @@ namespace IxMilia.Converters
             }.WithCommonProperties(ellipse);
         }
 
+        public static DxfInsert ToDxfInsert(this DwgInsert insert)
+        {
+            return new DxfInsert()
+            {
+                Layer = insert.Layer.Name,
+                LineTypeName = insert.LineType?.Name,
+                Location = insert.Location.ToDxfPoint(),
+                Name = insert.BlockHeader.Name,
+            }.WithCommonProperties(insert);
+        }
+
         public static DxfLine ToDxfLine(this DwgLine line)
         {
             return new DxfLine(line.P1.ToDxfPoint(), line.P2.ToDxfPoint())

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using IxMilia.Dwg;
 using IxMilia.Dwg.Objects;
 using IxMilia.Dxf;
+using IxMilia.Dxf.Blocks;
 using IxMilia.Dxf.Entities;
 using Xunit;
 
@@ -91,6 +92,38 @@ namespace IxMilia.Converters.Test
             var dwg = await Convert(dxf, DwgVersionId.R14);
             Assert.Equal("0", dwg.CurrentLayer.Name);
             Assert.Equal("BYBLOCK", dwg.CurrentEntityLineType.Name);
+        }
+
+        [Fact]
+        public async Task BlocksAndInsertsAreConverted()
+        {
+            // create dxf
+            var dxf = new DxfFile();
+            dxf.Header.Version = DxfAcadVersion.R14;
+
+            var block = new DxfBlock();
+            block.Name = "my-block";
+            block.Entities.Add(new DxfLine(new DxfPoint(1.0, 2.0, 0.0), new DxfPoint(3.0, 4.0, 0.0)));
+            dxf.Blocks.Add(block);
+
+            var insert = new DxfInsert();
+            insert.Name = block.Name;
+            insert.Location = new DxfPoint(5.0, 6.0, 0.0);
+            dxf.Entities.Add(insert);
+
+            // convert
+            var dwg = await Convert(dxf, DwgVersionId.R14);
+
+            // check
+            var dwgBlockHeader = dwg.BlockHeaders["my-block"];
+            var dwgLine = (DwgLine)dwgBlockHeader.Entities.Single();
+            Assert.Equal(new DwgPoint(1.0, 2.0, 0.0), dwgLine.P1);
+            Assert.Equal(new DwgPoint(3.0, 4.0, 0.0), dwgLine.P2);
+            Assert.Equal("0", dwgLine.Layer.Name);
+
+            var dwgInsert = (DwgInsert)dwg.ModelSpaceBlockRecord.Entities.Single();
+            Assert.True(ReferenceEquals(dwgBlockHeader, dwgInsert.BlockHeader));
+            Assert.Equal(new DwgPoint(5.0, 6.0, 0.0), dwgInsert.Location);
         }
     }
 }

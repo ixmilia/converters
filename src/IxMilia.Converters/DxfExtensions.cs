@@ -51,6 +51,16 @@ namespace IxMilia.Converters
             };
         }
 
+        public static DwgInsert ToDwgInsert(this DxfInsert insert, DwgDrawing drawing)
+        {
+            return new DwgInsert(drawing.BlockHeaders[insert.Name])
+            {
+                Layer = drawing.EnsureLayer(insert.Layer, DwgColor.FromIndex(1), insert.LineTypeName),
+                LineType = drawing.EnsureLineType(insert.LineTypeName),
+                Location = insert.Location.ToDwgPoint(),
+            }.WithCommonProperties(insert);
+        }
+
         public static DwgLine ToDwgLine(this DxfLine line)
         {
             return new DwgLine(line.P1.ToDwgPoint(), line.P2.ToDwgPoint())

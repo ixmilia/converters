@@ -30,6 +30,7 @@ namespace IxMilia.Converters
             ConvertActiveViewPortSettings(source, target);
             ConvertLineTypes(source, target);
             ConvertLayers(source, target);
+            ConvertBlocks(source, target);
             ConvertEntities(source, target);
 
             // ensure reference quality, since we may have re-created the objects
@@ -45,6 +46,30 @@ namespace IxMilia.Converters
             {
                 target.ViewPorts["*ACTIVE"].LowerLeft = source.ActiveViewPort.LowerLeft.ToDwgPoint();
                 target.ViewPorts["*ACTIVE"].Height = source.ActiveViewPort.ViewHeight;
+            }
+        }
+
+        private static void ConvertBlocks(DxfFile source, DwgDrawing target)
+        {
+            foreach (var block in source.Blocks)
+            {
+                var blockName = block.Name.ToUpperInvariant();
+                if (blockName == "*MODEL_SPACE" ||
+                    blockName == "*PAPER_SPACE")
+                {
+                    // these are special-cased elsewhere
+                    continue;
+                }
+
+                var layer = target.EnsureLayer(block.Layer, DwgColor.FromIndex(1), source.Header.CurrentEntityLineType);
+                var dwgBlockHeader = DwgBlockHeader.CreateBlockRecordWithName(block.Name, layer);
+                dwgBlockHeader.BasePoint = block.BasePoint.ToDwgPoint();
+                target.BlockHeaders.Add(dwgBlockHeader);
+
+                foreach (var entity in block.Entities)
+                {
+                    ConvertAndAddEntityToBlockHeader(entity, target, dwgBlockHeader.Name);
+                }
             }
         }
 
@@ -104,47 +129,60 @@ namespace IxMilia.Converters
         {
             foreach (var entity in source.Entities)
             {
-                switch (entity)
-                {
-                    case DxfArc arc:
-                        AddToDrawing(arc.ToDwgArc(), arc.Layer, entity.LineTypeName);
-                        break;
-                    case DxfCircle circle:
-                        AddToDrawing(circle.ToDwgCircle(), circle.Layer, entity.LineTypeName);
-                        break;
-                    case DxfEllipse ellipse:
-                        AddToDrawing(ellipse.ToDwgEllipse(), ellipse.Layer, ellipse.LineTypeName);
-                        break;
-                    case DxfLine line:
-                        AddToDrawing(line.ToDwgLine(), line.Layer, entity.LineTypeName);
-                        break;
-                    case DxfModelPoint modelPoint:
-                        AddToDrawing(modelPoint.ToDwgLocation(), modelPoint.Layer, entity.LineTypeName);
-                        break;
-                    case DxfLwPolyline lwpolyline:
-                        AddToDrawing(lwpolyline.ToDwgLwPolyline(), lwpolyline.Layer, entity.LineTypeName);
-                        break;
-                    case DxfPolyline polyline:
-                        AddToDrawing(polyline.ToDwgPolyline(), polyline.Layer, entity.LineTypeName);
-                        break;
-                    case DxfSpline spline:
-                        AddToDrawing(spline.ToDwgSpline(), spline.Layer, entity.LineTypeName);
-                        break;
-                    case DxfText text:
-                        AddToDrawing(text.ToDwgText(), text.Layer, text.LineTypeName);
-                        break;
-                    default:
-                        // TODO: everything else
-                        break;
-                }
+                ConvertAndAddEntityToBlockHeader(entity, target, target.ModelSpaceBlockRecord.Name);
+            }
+        }
+
+        private static void ConvertAndAddEntityToBlockHeader(DxfEntity entity, DwgDrawing drawing, string blockHeaderName)
+        {
+            switch (entity)
+            {
+                case DxfArc arc:
+                    AddToDrawing(arc.ToDwgArc(), arc.Layer, entity.LineTypeName);
+                    break;
+                case DxfCircle circle:
+                    AddToDrawing(circle.ToDwgCircle(), circle.Layer, entity.LineTypeName);
+                    break;
+                case DxfEllipse ellipse:
+                    AddToDrawing(ellipse.ToDwgEllipse(), ellipse.Layer, ellipse.LineTypeName);
+                    break;
+                case DxfInsert insert:
+                    AddToDrawing(insert.ToDwgInsert(drawing), insert.Layer, insert.LineTypeName);
+                    break;
+                case DxfLine line:
+                    AddToDrawing(line.ToDwgLine(), line.Layer, entity.LineTypeName);
+                    break;
+                case DxfModelPoint modelPoint:
+                    AddToDrawing(modelPoint.ToDwgLocation(), modelPoint.Layer, entity.LineTypeName);
+                    break;
+                case DxfLwPolyline lwpolyline:
+                    AddToDrawing(lwpolyline.ToDwgLwPolyline(), lwpolyline.Layer, entity.LineTypeName);
+                    break;
+                case DxfPolyline polyline:
+                    AddToDrawing(polyline.ToDwgPolyline(), polyline.Layer, entity.LineTypeName);
+                    break;
+                case DxfSpline spline:
+                    AddToDrawing(spline.ToDwgSpline(), spline.Layer, entity.LineTypeName);
+                    break;
+                case DxfText text:
+                    AddToDrawing(text.ToDwgText(), text.Layer, text.LineTypeName);
+                    break;
+                default:
+                    // TODO: everything else
+                    break;
             }
 
-            void AddToDrawing(DwgEntity entity, string layerName, string lineTypeName)
+            void AddToDrawing(DwgEntity dwgEntity, string layerName, string lineTypeName)
             {
-                entity.Layer = target.EnsureLayer(layerName, DwgColor.FromIndex(1), lineTypeName);
-                entity.LineType = target.EnsureLineType(lineTypeName);
-                target.ModelSpaceBlockRecord.Entities.Add(entity);
+                AddEntityToBlockHeader(drawing, blockHeaderName, dwgEntity, layerName, lineTypeName);
             }
+        }
+
+        private static void AddEntityToBlockHeader(DwgDrawing drawing, string blockHeaderName, DwgEntity entity, string layerName, string lineTypeName)
+        {
+            entity.Layer = drawing.EnsureLayer(layerName, DwgColor.FromIndex(1), lineTypeName);
+            entity.LineType = drawing.EnsureLineType(lineTypeName);
+            drawing.BlockHeaders[blockHeaderName].Entities.Add(entity);
         }
     }
 }

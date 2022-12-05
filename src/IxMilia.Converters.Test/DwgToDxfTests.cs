@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using IxMilia.Dwg;
 using IxMilia.Dwg.Objects;
 using IxMilia.Dxf;
+using IxMilia.Dxf.Blocks;
 using IxMilia.Dxf.Entities;
 using Xunit;
 
@@ -51,6 +52,40 @@ namespace IxMilia.Converters.Test
             Assert.Equal(4.0, arc.Radius);
             Assert.Equal(0.0, arc.StartAngle);
             Assert.Equal(180.0, arc.EndAngle);
+        }
+
+        [Fact]
+        public async Task BlocksAndInsertsAreConverted()
+        {
+            // create dwg
+            var drawing = new DwgDrawing();
+
+            var line = new DwgLine(new DwgPoint(1.0, 2.0, 0.0), new DwgPoint(3.0, 4.0, 0.0));
+            line.Layer = drawing.CurrentLayer;
+
+            var blockHeader = DwgBlockHeader.CreateBlockRecordWithName("my-block", drawing.CurrentLayer);
+            blockHeader.Entities.Add(line);
+            drawing.BlockHeaders.Add(blockHeader);
+
+            var insert = new DwgInsert(blockHeader);
+            insert.Location = new DwgPoint(5.0, 6.0, 0.0);
+            insert.Layer = drawing.CurrentLayer;
+
+            drawing.ModelSpaceBlockRecord.Entities.Add(insert);
+
+            // convert
+            var dxf = await Convert(drawing, DxfAcadVersion.R14);
+
+            // check
+            var dxfBlock = dxf.Blocks.Single(b => b.Name == "my-block");
+            var dxfLine = (DxfLine)dxfBlock.Entities.Single();
+            Assert.Equal(new DxfPoint(1.0, 2.0, 0.0), dxfLine.P1);
+            Assert.Equal(new DxfPoint(3.0, 4.0, 0.0), dxfLine.P2);
+            Assert.Equal("0", dxfLine.Layer);
+
+            var dxfInsert = (DxfInsert)dxf.Entities.Single();
+            Assert.Equal(dxfBlock.Name, dxfInsert.Name);
+            Assert.Equal(new DxfPoint(5.0, 6.0, 0.0), dxfInsert.Location);
         }
     }
 }
