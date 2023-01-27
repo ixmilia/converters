@@ -71,7 +71,7 @@ namespace IxMilia.Converters
             var builder = new PdfPathBuilder();
 
             // do images first so lines and text appear on top...
-            foreach (var layer in source.Layers)
+            foreach (var layer in source.Layers.Where(l => l.IsLayerOn))
             {
                 foreach (var image in source.Entities.OfType<DxfImage>().Where(i => i.Layer == layer.Name))
                 {
@@ -80,7 +80,7 @@ namespace IxMilia.Converters
             }
 
             // ...now do lines and text
-            foreach (var layer in source.Layers)
+            foreach (var layer in source.Layers.Where(l => l.IsLayerOn))
             {
                 foreach (var entity in source.Entities.Where(e => e.Layer == layer.Name && e.EntityType != DxfEntityType.Image))
                 {

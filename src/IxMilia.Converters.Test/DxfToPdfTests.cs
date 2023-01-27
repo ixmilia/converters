@@ -226,5 +226,43 @@ endstream".Trim());
   /Filter [/DCTDecode]>>".Trim());
             Assert.Contains(expectedObjectHeader, pdf);
         }
+
+        [Fact]
+        public async Task ConvertActiveLayersTest()
+        {
+            var dxf = new DxfFile();
+
+            var layer1 = new DxfLayer("layer-1") { IsLayerOn = true };
+            var layer2 = new DxfLayer("layer-2") { IsLayerOn = false };
+            dxf.Layers.Add(layer1);
+            dxf.Layers.Add(layer2);
+
+            var line1 = new DxfLine(new DxfPoint(0.0, 0.0, 0.0), new DxfPoint(1.0, 1.0, 0.0))
+            {
+                Layer = layer1.Name
+            };
+            var line2 = new DxfLine(new DxfPoint(2.0, 2.0, 0.0), new DxfPoint(3.0, 3.0, 0.0))
+            {
+                Layer = layer2.Name
+            };
+            dxf.Entities.Add(line1);
+            dxf.Entities.Add(line2);
+
+            var options = new DxfToPdfConverterOptions(
+                PdfMeasurement.Inches(8.5),
+                PdfMeasurement.Inches(11.0),
+                scale: 1.0);
+            var pdf = await ConvertToString(dxf, options);
+            var expected = NormalizeCrLf(@"
+stream
+0 w
+0 0 0 RG
+0 0 0 rg
+0.00 0.00 m
+72.00 72.00 l
+S
+".Trim());
+            Assert.Contains(expected, pdf);
+        }
     }
 }
