@@ -488,5 +488,26 @@ namespace IxMilia.Converters.Test
             Assert.Contains("function", script.Value);
             Assert.DoesNotContain("&gt;", script.Value);
         }
+
+        [Fact]
+        public async Task LayerNotDisplayAsAppropriate()
+        {
+            var dxf = new DxfFile();
+            var layer = new DxfLayer("layer") { IsLayerOn = false };
+            dxf.Layers.Add(layer);
+
+            var root = await new DxfToSvgConverter().Convert(dxf, new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect()));
+
+            // get deepest element with children...
+            var element = root;
+            while (element.HasElements && element.Elements().First().HasElements)
+            {
+                element = element.Elements().First();
+            }
+
+            // ...then get the last child
+            var last = element.Elements().Last();
+            Assert.Equal("none", last.Attribute("display").Value);
+        }
     }
 }

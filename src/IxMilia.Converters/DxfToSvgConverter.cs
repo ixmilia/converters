@@ -74,6 +74,11 @@ namespace IxMilia.Converters
                     new XAttribute("stroke", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("fill", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("class", $"dxf-layer {layer.Name}"));
+                if (!layer.IsLayerOn)
+                {
+                    layerGroup.Add(new XAttribute("display", "none"));
+                }
+
                 foreach (var entity in file.Entities.OfType<DxfImage>().Where(i => i.Layer == layer.Name))
                 {
                     var element = await entity.ToXElement(options);
@@ -98,6 +103,11 @@ namespace IxMilia.Converters
                     new XAttribute("stroke", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("fill", (layer.Color ?? autoColor).ToRGBString()),
                     new XAttribute("class", $"dxf-layer {layer.Name}"));
+                if (!layer.IsLayerOn)
+                {
+                    layerGroup.Add(new XAttribute("display", "none"));
+                }
+
                 foreach (var entity in file.Entities.Where(entity => entity.Layer == layer.Name && entity.EntityType != DxfEntityType.Image))
                 {
                     var element = await entity.ToXElement(options);
