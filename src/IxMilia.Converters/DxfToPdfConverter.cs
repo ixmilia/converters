@@ -198,10 +198,11 @@ namespace IxMilia.Converters
             // TODO RelativeXScaleFactor
             // TODO TextHeight unit? Same as other scale?
             // TODO TextStyleName probably maps to something meaningfull (bold, italic, etc?)
+            var rotationAngleInRadians = text.Rotation * Math.PI / 180.0;
             var fontSize = transform.TransformedScale(0.0, text.TextHeight).ToPdfPoint(PdfMeasurementType.Point).Y;
             PdfPoint location = transform.Transform(text.Location).ToPdfPoint(PdfMeasurementType.Point);
             var pdfStreamState = new PdfStreamState(GetPdfColor(text, layer));
-            return new PdfText(text.Value, Font, fontSize, location, pdfStreamState);
+            return new PdfText(text.Value, Font, fontSize, location, rotationAngleInRadians, pdfStreamState);
         }
 
         private static IEnumerable<IPdfPathItem> ConvertPoint(DxfModelPoint point, DxfLayer layer, Matrix4 transform)

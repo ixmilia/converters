@@ -264,5 +264,26 @@ S
 ".Trim());
             Assert.Contains(expected, pdf);
         }
+
+        [Fact]
+        public async Task ConvertTextTest()
+        {
+            var dxf = new DxfFile();
+            dxf.ActiveViewPort = new DxfViewPort("viewport-name")
+            {
+                LowerLeft = new DxfPoint(0.0, 0.0, 0.0),
+                ViewHeight = 11.0,
+            };
+            // text with rotation
+            dxf.Entities.Add(new DxfText(new DxfPoint(), 1.0, "sample-text") { Rotation = 45.0 });
+            var pdf = await ConvertToString(dxf, scale: 0.5);
+            var expected = NormalizeCrLf(@"
+BT
+    /F1 36.00 Tf
+    0.71 0.71 -0.71 0.71 0.00 0.00 Tm
+    [(sample-text)] TJ
+ET".Trim());
+            Assert.Contains(expected, pdf);
+        }
     }
 }
