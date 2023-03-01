@@ -145,7 +145,8 @@ namespace IxMilia.Converters
                 Normal = text.Extrusion.ToDxfVector(),
                 HorizontalTextJustification = (DxfHorizontalTextJustification)text.HorizontalAlignment,
                 VerticalTextJustification = (DxfVerticalTextJustification)text.VerticalAlignment,
-                Rotation = text.RotationAngle,
+                TextHeight = text.Height,
+                Rotation = text.RotationAngle * RadiansToDegrees,
             }.WithCommonProperties(text);
         }
 

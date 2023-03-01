@@ -59,6 +59,16 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
+        public async Task TextRotationAngleIsProperlyConverted()
+        {
+            var text = await Convert<DwgText>(new DxfText(new DxfPoint(1.0, 2.0, 3.0), 4.0, "sample-text") { Rotation = 180.0 });
+            Assert.Equal(new DwgPoint(1.0, 2.0, 3.0), text.InsertionPoint);
+            Assert.Equal(4.0, text.Height);
+            Assert.Equal("sample-text", text.Value);
+            Assert.Equal(Math.PI, text.RotationAngle);
+        }
+
+        [Fact]
         public async Task LayersAndLineTypesAreAddedToABareDXF()
         {
             var dxfText = string.Join("\r\n", new[]

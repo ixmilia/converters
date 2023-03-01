@@ -136,9 +136,10 @@ namespace IxMilia.Converters
                 InsertionPoint = text.Location.ToDwgPoint(),
                 Elevation = text.Elevation,
                 Extrusion = text.Normal.ToDwgVector(),
+                Height = text.TextHeight,
                 HorizontalAlignment = (DwgHorizontalTextJustification)text.HorizontalTextJustification,
                 VerticalAlignment = (DwgVerticalTextJustification)text.VerticalTextJustification,
-                RotationAngle = text.Rotation,
+                RotationAngle = text.Rotation * DegreesToRadians,
             }.WithCommonProperties(text);
         }
 

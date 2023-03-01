@@ -55,6 +55,16 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
+        public async Task TextRotationAngleIsPropertyConverted()
+        {
+            var text = await Convert<DxfText>(new DwgText("sample-text") { InsertionPoint = new DwgPoint(1.0, 2.0, 3.0), Height = 4.0, RotationAngle = Math.PI });
+            Assert.Equal(new DxfPoint(1.0, 2.0, 3.0), text.Location);
+            Assert.Equal(4.0, text.TextHeight);
+            Assert.Equal("sample-text", text.Value);
+            Assert.Equal(180.0, text.Rotation);
+        }
+
+        [Fact]
         public async Task BlocksAndInsertsAreConverted()
         {
             // create dwg
