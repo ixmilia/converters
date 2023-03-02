@@ -14,16 +14,18 @@ namespace IxMilia.Converters.Test
     {
         private static void AssertXElement(XElement expected, XElement actual)
         {
-            Assert.Equal(expected.Name.LocalName, actual.Name.LocalName); // too lazy to specify the xmlns in each test
+            var errorMessage = $"Expected: {expected}\nActual:   {actual}";
+            Assert.True(expected.Name.LocalName == actual.Name.LocalName, errorMessage); // too lazy to specify the xmlns in each test
             var expectedAttributes = expected.Attributes().ToList();
             var actualAttributes = actual.Attributes().ToList();
-            Assert.Equal(expectedAttributes.Count, actualAttributes.Count);
+            Assert.True(expectedAttributes.Count == actualAttributes.Count, errorMessage);
             for (int i = 0; i < expectedAttributes.Count; i++)
             {
                 var expectedAttribute = expectedAttributes[i];
                 var actualAttribute = actualAttributes[i];
-                Assert.Equal(expectedAttribute.Name, actualAttribute.Name);
-                Assert.Equal(expectedAttribute.Value, actualAttribute.Value);
+                var attributeErrorMessage = $"Expected: {expectedAttribute}\nActual:   {actualAttribute}";
+                Assert.True(expectedAttribute.Name == actualAttribute.Name, attributeErrorMessage);
+                Assert.True(expectedAttribute.Value == actualAttribute.Value, attributeErrorMessage);
 
                 var expectedChildren = expected.Elements().ToList();
                 var actualChildren = actual.Elements().ToList();
@@ -420,6 +422,24 @@ namespace IxMilia.Converters.Test
             Assert.False(arc.IsCounterClockwiseSweep);
             Assert.False(arc.IsLargeArc);
             Assert.Equal(0.0, arc.XAxisRotation);
+        }
+
+        [Fact]
+        public void RotatedTextTest()
+        {
+            var text = new DxfText(new DxfPoint(5.0, 6.0, 0), 3.0, "sample-text")
+            {
+                Rotation = 45.0
+            };
+
+            var expected = new XElement("text",
+                new XAttribute("x", "0.0"),
+                new XAttribute("y", "0.0"),
+                new XAttribute("font-size", "24.0px"),
+                new XAttribute("transform", "translate(5.0 6.0) scale(0.125 -0.125) rotate(-45.0)"),
+                "sample-text");
+            var actual = text.ToXElement();
+            AssertXElement(expected, actual);
         }
 
         [Fact]

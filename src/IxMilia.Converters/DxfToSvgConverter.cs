@@ -309,6 +309,8 @@ namespace IxMilia.Converters
                     return await insert.ToXElement(options);
                 case DxfSpline spline:
                     return spline.ToXElement();
+                case DxfText text:
+                    return text.ToXElement();
                 default:
                     return null;
             }
@@ -445,6 +447,27 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
+        public static XElement ToXElement(this DxfText text)
+        {
+            var rotation = text.Rotation == 0.0
+                ? null
+                : $"rotate({(-text.Rotation).ToDisplayString()})";
+
+            // ensure the text is rendered to at least 24 pixels then scaled appropriately; this will make text readable even if its drawing height is small
+            var minimumTextPixelHeight = 24.0;
+            var fontSize = Math.Max(text.TextHeight, minimumTextPixelHeight);
+            var textScaleFactor = fontSize / text.TextHeight;
+            var inverseTextScaleFactor = 1.0 / textScaleFactor;
+            return new XElement(DxfToSvgConverter.Xmlns + "text",
+                new XAttribute("x", "0.0"),
+                new XAttribute("y", "0.0"),
+                new XAttribute("font-size", $"{fontSize.ToDisplayString()}px"),
+                new XAttribute("transform", $"translate({text.Location.X.ToDisplayString()} {text.Location.Y.ToDisplayString()}) scale({inverseTextScaleFactor.ToDisplayString()} -{inverseTextScaleFactor.ToDisplayString()}) {rotation}".Trim()),
+                text.Value)
+                .AddFill(text.Color)
+                .AddStroke(text.Color);
+        }
+
         private static SvgPathSegment FromPolylineVertices(DxfLwPolylineVertex last, DxfLwPolylineVertex next)
         {
             return FromPolylineVertices(last.X, last.Y, last.Bulge, next.X, next.Y);
@@ -564,6 +587,17 @@ namespace IxMilia.Converters
             }
 
             return new SvgPath(segments);
+        }
+
+        private static XElement AddFill(this XElement element, DxfColor color)
+        {
+            if (color.IsIndex)
+            {
+                var colorString = color.ToRGBString();
+                element.SetAttributeValue("fill", colorString);
+            }
+
+            return element;
         }
 
         private static XElement AddStroke(this XElement element, DxfColor color)
