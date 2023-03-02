@@ -122,9 +122,11 @@ namespace IxMilia.Converters
 
             var dxfAspectRatio = options.DxfRect.Width / options.DxfRect.Height;
             var svgAspectRatio = options.SvgRect.Width / options.SvgRect.Height;
+            var marginWidth = options.SvgRect.LeftMargin + options.SvgRect.RightMargin;
+            var marginHeight = options.SvgRect.TopMargin + options.SvgRect.BottomMargin;
             var scale = svgAspectRatio < dxfAspectRatio
-                ? options.SvgRect.Width / options.DxfRect.Width
-                : options.SvgRect.Height / options.DxfRect.Height;
+                ? (options.SvgRect.Width - marginWidth) / options.DxfRect.Width
+                : (options.SvgRect.Height - marginHeight) / options.DxfRect.Height;
 
             var root = new XElement(Xmlns + "svg",
                 new XAttribute("width", options.SvgRect.Width.ToDisplayString()),
@@ -132,21 +134,24 @@ namespace IxMilia.Converters
                 new XAttribute("viewBox", $"0 0 {options.SvgRect.Width.ToDisplayString()} {options.SvgRect.Height.ToDisplayString()}"),
                 new XAttribute("version", "1.1"),
                 new XAttribute("class", "dxf-drawing"),
-                new XComment(" this group corrects for the y-axis going in different directions "),
+                new XComment(" this group corrects for display margins "),
                 new XElement(Xmlns + "g",
-                    new XAttribute("transform", $"translate(0 {options.SvgRect.Height.ToDisplayString()}) scale(1 -1)"),
-                    new XComment(" this group handles display panning "),
+                    new XAttribute("transform", $"translate({options.SvgRect.LeftMargin.ToDisplayString()} {(options.SvgRect.TopMargin * -1.0).ToDisplayString()})"),
+                    new XComment(" this group corrects for the y-axis going in different directions "),
                     new XElement(Xmlns + "g",
-                        new XAttribute("transform", "translate(0 0)"),
-                        new XAttribute("class", "svg-translate"),
-                        new XComment(" this group handles display scaling "),
+                        new XAttribute("transform", $"translate(0 {options.SvgRect.Height.ToDisplayString()}) scale(1 -1)"),
+                        new XComment(" this group handles display panning "),
                         new XElement(Xmlns + "g",
-                            new XAttribute("transform", $"scale({scale.ToDisplayString()} {scale.ToDisplayString()})"),
-                            new XAttribute("class", "svg-scale"),
-                            new XComment(" this group handles initial translation offset "),
+                            new XAttribute("transform", "translate(0 0)"),
+                            new XAttribute("class", "svg-translate"),
+                            new XComment(" this group handles display scaling "),
                             new XElement(Xmlns + "g",
-                                new XAttribute("transform", $"translate({(-options.DxfRect.Left).ToDisplayString()} {(-options.DxfRect.Bottom).ToDisplayString()})"),
-                                worldGroup)))));
+                                new XAttribute("transform", $"scale({scale.ToDisplayString()} {scale.ToDisplayString()})"),
+                                new XAttribute("class", "svg-scale"),
+                                new XComment(" this group handles initial translation offset "),
+                                new XElement(Xmlns + "g",
+                                    new XAttribute("transform", $"translate({(-options.DxfRect.Left).ToDisplayString()} {(-options.DxfRect.Bottom).ToDisplayString()})"),
+                                    worldGroup))))));
 
             var layerNames = file.Layers.OrderBy(layer => layer.Name).Select(layer => layer.Name);
             root = TransformToHtmlDiv(root, options.SvgId, layerNames, -options.DxfRect.Left, -options.DxfRect.Bottom, scale, scale);

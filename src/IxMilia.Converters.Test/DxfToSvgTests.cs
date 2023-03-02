@@ -448,15 +448,19 @@ namespace IxMilia.Converters.Test
         [Fact]
         public async Task EnsureValidShapeAsBareSvg()
         {
-            // svg starts with 5 levels of `g`
+            // svg starts with 6 levels of `g`
             var element = await new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect()));
             Assert.Equal("svg", element.Name.LocalName);
             var g = element.Elements().Single();
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 6; i++)
             {
                 Assert.Equal("g", g.Name.LocalName);
                 g = g.Elements().Single();
             }
+
+            // and no more `g` levels
+            var next = g.Elements().FirstOrDefault();
+            Assert.NotEqual("g", next?.Name.LocalName);
         }
 
         [Fact]
