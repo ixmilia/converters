@@ -43,6 +43,15 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
+        public async Task RoundTripHeaderVariables()
+        {
+            var d1 = new DxfFile();
+            d1.Header.FilletRadius = 6.0;
+            var d2 = await RoundTrip(d1);
+            Assert.Equal(6.0, d2.Header.FilletRadius);
+        }
+
+        [Fact]
         public async Task RoundTripActiveViewPort()
         {
             var d1 = new DxfFile();
@@ -85,7 +94,7 @@ namespace IxMilia.Converters.Test
         }
 
         [Fact]
-        public async Task RoundTripMultiplEntities()
+        public async Task RoundTripMultipleEntities()
         {
             var dxf = new DxfFile();
             dxf.Entities.Add(new DxfArc());
