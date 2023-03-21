@@ -253,7 +253,7 @@ namespace IxMilia.Converters.Test
                     new XAttribute("stroke-width", "1.0px"),
                     new XAttribute("vector-effect", "non-scaling-stroke")));
 
-            var actual = await insert.ToXElement(default);
+            var actual = await insert.ToXElement(default, default, default, default, default);
             AssertXElement(expected, actual);
         }
 

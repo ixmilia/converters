@@ -27,6 +27,7 @@ namespace IxMilia.Converters
 
             // TODO: all the other things
             ConvertActiveViewPortSettings(source, target);
+            ConvertDimensionStyles(source, target);
             ConvertLineTypes(source, target);
             ConvertLayers(source, target);
             ConvertBlocks(source, target);
@@ -236,6 +237,76 @@ namespace IxMilia.Converters
             }
         }
 
+        private static void ConvertDimensionStyles(DxfFile source, DwgDrawing target)
+        {
+            foreach (var dimStyle in source.DimensionStyles)
+            {
+                var dwgDimStyle = new DwgDimStyle(dimStyle.Name)
+                {
+                    // regular properties
+                    DimensioningSuffix = dimStyle.DimensioningSuffix,
+                    AlternateDimensioningSuffix = dimStyle.AlternateDimensioningSuffix,
+                    ArrowBlockName = dimStyle.ArrowBlockName,
+                    FirstArrowBlockName = dimStyle.FirstArrowBlockName,
+                    SecondArrowBlockName = dimStyle.SecondArrowBlockName,
+                    DimensioningScaleFactor = dimStyle.DimensioningScaleFactor,
+                    DimensioningArrowSize = dimStyle.DimensioningArrowSize,
+                    DimensionExtensionLineOffset = dimStyle.DimensionExtensionLineOffset,
+                    DimensionLineIncrement = dimStyle.DimensionLineIncrement,
+                    DimensionExtensionLineExtension = dimStyle.DimensionExtensionLineExtension,
+                    DimensionDistanceRoundingValue = dimStyle.DimensionDistanceRoundingValue,
+                    DimensionLineExtension = dimStyle.DimensionLineExtension,
+                    DimensionPlusTolerance = dimStyle.DimensionPlusTolerance,
+                    DimensionMinusTolerance = dimStyle.DimensionMinusTolerance,
+                    GenerateDimensionTolerances = dimStyle.GenerateDimensionTolerances,
+                    GenerateDimensionLimits = dimStyle.GenerateDimensionLimits,
+                    DimensionTextInsideHorizontal = dimStyle.DimensionTextInsideHorizontal,
+                    DimensionTextOutsideHorizontal = dimStyle.DimensionTextOutsideHorizontal,
+                    SuppressFirstDimensionExtensionLine = dimStyle.SuppressFirstDimensionExtensionLine,
+                    SuppressSecondDimensionExtensionLine = dimStyle.SuppressSecondDimensionExtensionLine,
+                    TextAboveDimensionLine = dimStyle.TextAboveDimensionLine,
+                    DimensionUnitZeroSuppression = (DwgUnitZeroSuppression)dimStyle.DimensionUnitZeroSuppression,
+                    DimensioningTextHeight = dimStyle.DimensioningTextHeight,
+                    CenterMarkSize = dimStyle.CenterMarkSize,
+                    DimensioningTickSize = dimStyle.DimensioningTickSize,
+                    AlternateDimensioningScaleFactor = dimStyle.AlternateDimensioningScaleFactor,
+                    DimensionLinearMeasurementsScaleFactor = dimStyle.DimensionLinearMeasurementScaleFactor,
+                    DimensionVerticalTextPosition = dimStyle.DimensionVerticalTextPosition,
+                    DimensionToleranceDisplayScaleFactor = dimStyle.DimensionToleranceDisplaceScaleFactor,
+                    DimensionLineGap = dimStyle.DimensionLineGap,
+                    UseAlternateDimensioning = dimStyle.UseAlternateDimensioning,
+                    AlternateDimensioningDecimalPlaces = dimStyle.AlternateDimensioningDecimalPlaces,
+                    ForceDimensionLineExtensionsOutsideIfTextIs = dimStyle.ForceDimensionLineExtensionsOutsideIfTextExists,
+                    UseSeparateArrowBlocksForDimensions = dimStyle.UseSeparateArrowBlocksForDimensions,
+                    ForceDimensionTextInsideExtensions = dimStyle.ForceDimensionTextInsideExtensions,
+                    SuppressOutsideExtensionDimensionLines = dimStyle.SuppressOutsideExtensionDimensionLines,
+                    DimensionLineColor = dimStyle.DimensionLineColor?.ToDwgColor() ?? DwgColor.ByBlock,
+                    DimensionExtensionLineColor = dimStyle.DimensionExtensionLineColor?.ToDwgColor() ?? DwgColor.ByBlock,
+                    DimensionTextColor = dimStyle.DimensionTextColor?.ToDwgColor() ?? DwgColor.ByBlock,
+                    DimensionUnitFormat = (DwgUnitFormat)dimStyle.DimensionUnitFormat,
+                    DimensionUnitToleranceDecimalPlaces = dimStyle.DimensionUnitToleranceDecimalPlaces,
+                    DimensionToleranceDecimalPlaces = dimStyle.DimensionToleranceDecimalPlaces,
+                    AlternateDimensioningUnits = (DwgUnitFormat)dimStyle.AlternateDimensioningUnits,
+                    AlternateDimensioningToleranceDecimalPlaces = dimStyle.AlternateDimensioningToleranceDecimalPlaces,
+                    DimensioningAngleFormat = (DwgAngleFormat)dimStyle.DimensioningAngleFormat,
+                    DimensionTextJustification = (DwgDimensionTextJustification)dimStyle.DimensionTextJustification,
+                    DimensionToleranceVerticalJustification = (DwgJustification)dimStyle.DimensionToleranceVerticalJustification,
+                    DimensionToleranceZeroSuppression = (DwgUnitZeroSuppression)dimStyle.DimensionToleranceZeroSuppression,
+                    AlternateDimensioningZeroSupression = (DwgUnitZeroSuppression)dimStyle.AlternateDimensioningZeroSuppression,
+                    AlternateDimensioningToleranceZeroSupression = (DwgUnitZeroSuppression)dimStyle.AlternateDimensioningToleranceZeroSuppression,
+                    DimensionTextAndArrowPlacement = (DwgDimensionFit)dimStyle.DimensionTextAndArrowPlacement,
+                    DimensionCursorControlsTextPosition = dimStyle.DimensionCursorControlsTextPosition,
+
+                    // other properties
+                    Style = target.Styles[dimStyle.DimensionTextStyle ?? source.Header.DimensionTextStyle],
+                };
+                target.DimStyles.Remove(dimStyle.Name);
+                target.DimStyles.Add(dwgDimStyle);
+            }
+
+            target.DimensionStyle = target.DimStyles[target.DimensionStyle.Name];
+        }
+
         private static void ConvertLineTypes(DxfFile source, DwgDrawing target)
         {
             foreach (var lineType in source.LineTypes)
@@ -300,6 +371,9 @@ namespace IxMilia.Converters
         {
             switch (entity)
             {
+                case DxfAlignedDimension aligned:
+                    AddToDrawing(aligned.ToDwgAlignedDimension(drawing), aligned.Layer, aligned.LineTypeName);
+                    break;
                 case DxfArc arc:
                     AddToDrawing(arc.ToDwgArc(), arc.Layer, entity.LineTypeName);
                     break;
@@ -323,6 +397,9 @@ namespace IxMilia.Converters
                     break;
                 case DxfPolyline polyline:
                     AddToDrawing(polyline.ToDwgPolyline(), polyline.Layer, entity.LineTypeName);
+                    break;
+                case DxfRotatedDimension rotated:
+                    AddToDrawing(rotated.ToDwgRotatedDimension(drawing), rotated.Layer, rotated.LineTypeName);
                     break;
                 case DxfSpline spline:
                     AddToDrawing(spline.ToDwgSpline(), spline.Layer, entity.LineTypeName);

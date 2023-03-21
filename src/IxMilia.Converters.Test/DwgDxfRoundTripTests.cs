@@ -32,11 +32,11 @@ namespace IxMilia.Converters.Test
             return roundTrippedDxf;
         }
 
-        private static async Task<TEntity> RoundTrip<TEntity>(TEntity entity) where TEntity : DxfEntity
+        private static async Task<TEntity> RoundTrip<TEntity>(TEntity entity, bool roundTripThroughStreams = false) where TEntity : DxfEntity
         {
             var dxfFile = new DxfFile();
             dxfFile.Entities.Add(entity);
-            var roundTrippedDxf = await RoundTrip(dxfFile);
+            var roundTrippedDxf = await RoundTrip(dxfFile, roundTripThroughStreams);
             var resultEntity = roundTrippedDxf.Entities.Single();
             var typedEntity = (TEntity)resultEntity;
             return typedEntity;
@@ -91,6 +91,21 @@ namespace IxMilia.Converters.Test
             Assert.Equal(2, roundTrippedLineType.Elements.Count);
             Assert.Equal(0.5, roundTrippedLineType.Elements[0].DashDotSpaceLength);
             Assert.Equal(0.25, roundTrippedLineType.Elements[1].DashDotSpaceLength);
+        }
+
+        [Fact]
+        public async Task RoundTripDimensionStyle()
+        {
+            var d1 = new DxfFile();
+            var ds1 = new DxfDimStyle("my-dimension-style")
+            {
+                DimensionLineGap = 42.0,
+            };
+            d1.DimensionStyles.Add(ds1);
+
+            var d2 = await RoundTrip(d1);
+            var ds2 = d2.DimensionStyles.Single(d => d.Name == ds1.Name);
+            Assert.Equal(ds1.DimensionLineGap, ds2.DimensionLineGap);
         }
 
         [Fact]
@@ -238,6 +253,44 @@ namespace IxMilia.Converters.Test
             Assert.Equal(e1.Location, e2.Location);
             Assert.Equal(e1.TextHeight, e2.TextHeight);
             Assert.Equal(e1.Value, e2.Value);
+        }
+
+        [Fact]
+        public async Task RoundTripRotatedDimension()
+        {
+            var e1 = new DxfRotatedDimension()
+            {
+                DefinitionPoint1 = new DxfPoint(1.0, 2.0, 3.0),
+                DefinitionPoint2 = new DxfPoint(4.0, 5.0, 6.0),
+                DefinitionPoint3 = new DxfPoint(7.0, 8.0, 9.0),
+                Text = "some-text",
+                TextMidPoint = new DxfPoint(11.0, 22.0, 0.0),
+            };
+            var e2 = await RoundTrip(e1, roundTripThroughStreams: true);
+            Assert.Equal(e1.DefinitionPoint1, e2.DefinitionPoint1);
+            Assert.Equal(e1.DefinitionPoint2, e2.DefinitionPoint2);
+            Assert.Equal(e1.DefinitionPoint3, e2.DefinitionPoint3);
+            Assert.Equal(e1.Text, e2.Text);
+            Assert.Equal(e1.TextMidPoint, e2.TextMidPoint);
+        }
+
+        [Fact]
+        public async Task RoundTripAlignedDimension()
+        {
+            var e1 = new DxfAlignedDimension()
+            {
+                DefinitionPoint1 = new DxfPoint(1.0, 2.0, 3.0),
+                DefinitionPoint2 = new DxfPoint(4.0, 5.0, 6.0),
+                DefinitionPoint3 = new DxfPoint(7.0, 8.0, 9.0),
+                Text = "some-text",
+                TextMidPoint = new DxfPoint(11.0, 22.0, 0.0),
+            };
+            var e2 = await RoundTrip(e1, roundTripThroughStreams: true);
+            Assert.Equal(e1.DefinitionPoint1, e2.DefinitionPoint1);
+            Assert.Equal(e1.DefinitionPoint2, e2.DefinitionPoint2);
+            Assert.Equal(e1.DefinitionPoint3, e2.DefinitionPoint3);
+            Assert.Equal(e1.Text, e2.Text);
+            Assert.Equal(e1.TextMidPoint, e2.TextMidPoint);
         }
     }
 }

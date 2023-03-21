@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using IxMilia.Dwg;
 using IxMilia.Dwg.Objects;
@@ -23,7 +24,31 @@ namespace IxMilia.Converters
 
         public static DwgPoint ToDwgPoint(this DxfPoint point) => new DwgPoint(point.X, point.Y, point.Z);
 
+        public static Vector ToVector(this DxfPoint point) => new Vector(point.X, point.Y, point.Z);
+
+        public static DxfPoint ToDxfPoint(this Vector v) => new DxfPoint(v.X, v.Y, v.Z);
+
         public static DwgVector ToDwgVector(this DxfVector vector) => new DwgVector(vector.X, vector.Y, vector.Z);
+
+        private static TDimension ToDimension<TDimension>(DxfDimensionBase dim, DwgDrawing drawing, TDimension result) where TDimension : DwgDimension
+        {
+            var layer = drawing.EnsureLayer(dim.Layer, DwgColor.FromIndex(1), dim.LineTypeName);
+            result.AnonymousBlock = drawing.EnsureBlock(layer, "*D0");
+            result.DimensionStyle = drawing.EnsureDimensionStyle(dim.DimensionStyleName);
+            return result.WithCommonProperties(dim);
+        }
+
+        public static DwgDimensionAligned ToDwgAlignedDimension(this DxfAlignedDimension aligned, DwgDrawing drawing)
+        {
+            return ToDimension(aligned, drawing, new DwgDimensionAligned()
+            {
+                FirstDefinitionPoint = aligned.DefinitionPoint1.ToDwgPoint(),
+                SecondDefinitionPoint = aligned.DefinitionPoint2.ToDwgPoint(),
+                ThirdDefinitionPoint = aligned.DefinitionPoint3.ToDwgPoint(),
+                Text = aligned.Text,
+                TextMidpoint = aligned.TextMidPoint.ToDwgPoint(),
+            });
+        }
 
         public static DwgArc ToDwgArc(this DxfArc arc)
         {
@@ -98,6 +123,18 @@ namespace IxMilia.Converters
             }
         }
 
+        public static DwgDimensionOrdinate ToDwgRotatedDimension(this DxfRotatedDimension rotated, DwgDrawing drawing)
+        {
+            return ToDimension(rotated, drawing, new DwgDimensionOrdinate()
+            {
+                FirstDefinitionPoint = rotated.DefinitionPoint1.ToDwgPoint(),
+                SecondDefinitionPoint = rotated.DefinitionPoint2.ToDwgPoint(),
+                ThirdDefinitionPoint = rotated.DefinitionPoint3.ToDwgPoint(),
+                Text = rotated.Text,
+                TextMidpoint = rotated.TextMidPoint.ToDwgPoint(),
+            });
+        }
+
         private static DwgPolyline2D ToDwgPolyline2D(this DxfPolyline polyline)
         {
             return new DwgPolyline2D(polyline.Vertices.Select(v => new DwgVertex2D(v.Location.ToDwgPoint())))
@@ -149,6 +186,48 @@ namespace IxMilia.Converters
             entity.Color = parent.Color.ToDwgColor();
             entity.LineTypeScale = parent.LineTypeScale;
             return entity;
+        }
+
+        public static DimensionSettings ToDimensionSettings(this DxfDimStyle dimStyle)
+        {
+            return new DimensionSettings(
+                textHeight: dimStyle.DimensioningTextHeight,
+                extensionLineOffset: dimStyle.DimensionExtensionLineOffset,
+                extensionLineExtension: dimStyle.DimensionExtensionLineExtension,
+                dimensionLineGap: dimStyle.DimensionLineGap,
+                arrowSize: dimStyle.DimensioningArrowSize);
+        }
+
+        public static UnitFormat ToUnitFormat(this DxfUnitFormat unitFormat)
+        {
+            switch (unitFormat)
+            {
+                case DxfUnitFormat.Architectural:
+                case DxfUnitFormat.ArchitecturalStacked:
+                    return UnitFormat.Architectural;
+                case DxfUnitFormat.Decimal:
+                case DxfUnitFormat.Engineering:
+                case DxfUnitFormat.Scientific:
+                    return UnitFormat.Decimal;
+                case DxfUnitFormat.Fractional:
+                case DxfUnitFormat.FractionalStacked:
+                    return UnitFormat.Fractional;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(unitFormat));
+            }
+        }
+
+        public static DrawingUnits ToDrawingUnits(this DxfDrawingUnits drawingUnits)
+        {
+            switch (drawingUnits)
+            {
+                case DxfDrawingUnits.English:
+                    return DrawingUnits.English;
+                case DxfDrawingUnits.Metric:
+                    return DrawingUnits.Metric;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(drawingUnits));
+            }
         }
     }
 }

@@ -56,6 +56,68 @@ namespace IxMilia.Converters
                 result.Blocks.Add(dxfBlock);
             }
 
+            // dim styles
+            result.DimensionStyles.Clear();
+            foreach (var dimStyle in source.DimStyles.Values)
+            {
+                var dxfDimStyle = new DxfDimStyle(dimStyle.Name)
+                {
+                    DimensioningSuffix = dimStyle.DimensioningSuffix,
+                    AlternateDimensioningSuffix = dimStyle.AlternateDimensioningSuffix,
+                    ArrowBlockName = dimStyle.ArrowBlockName,
+                    FirstArrowBlockName = dimStyle.FirstArrowBlockName,
+                    SecondArrowBlockName = dimStyle.SecondArrowBlockName,
+                    DimensioningScaleFactor = dimStyle.DimensioningScaleFactor,
+                    DimensioningArrowSize = dimStyle.DimensioningArrowSize,
+                    DimensionExtensionLineOffset = dimStyle.DimensionExtensionLineOffset,
+                    DimensionLineIncrement = dimStyle.DimensionLineIncrement,
+                    DimensionExtensionLineExtension = dimStyle.DimensionExtensionLineExtension,
+                    DimensionDistanceRoundingValue = dimStyle.DimensionDistanceRoundingValue,
+                    DimensionLineExtension = dimStyle.DimensionLineExtension,
+                    DimensionPlusTolerance = dimStyle.DimensionPlusTolerance,
+                    DimensionMinusTolerance = dimStyle.DimensionMinusTolerance,
+                    GenerateDimensionTolerances = dimStyle.GenerateDimensionTolerances,
+                    GenerateDimensionLimits = dimStyle.GenerateDimensionLimits,
+                    DimensionTextInsideHorizontal = dimStyle.DimensionTextInsideHorizontal,
+                    DimensionTextOutsideHorizontal = dimStyle.DimensionTextOutsideHorizontal,
+                    SuppressFirstDimensionExtensionLine = dimStyle.SuppressFirstDimensionExtensionLine,
+                    SuppressSecondDimensionExtensionLine = dimStyle.SuppressSecondDimensionExtensionLine,
+                    TextAboveDimensionLine = dimStyle.TextAboveDimensionLine,
+                    DimensionUnitZeroSuppression = (DxfUnitZeroSuppression)dimStyle.DimensionUnitZeroSuppression,
+                    DimensioningTextHeight = dimStyle.DimensioningTextHeight,
+                    CenterMarkSize = dimStyle.CenterMarkSize,
+                    DimensioningTickSize = dimStyle.DimensioningTickSize,
+                    AlternateDimensioningScaleFactor = dimStyle.AlternateDimensioningScaleFactor,
+                    DimensionLinearMeasurementScaleFactor = dimStyle.DimensionLinearMeasurementsScaleFactor,
+                    DimensionVerticalTextPosition = dimStyle.DimensionVerticalTextPosition,
+                    DimensionToleranceDisplaceScaleFactor = dimStyle.DimensionToleranceDisplayScaleFactor,
+                    DimensionLineGap = dimStyle.DimensionLineGap,
+                    UseAlternateDimensioning = dimStyle.UseAlternateDimensioning,
+                    AlternateDimensioningDecimalPlaces = dimStyle.AlternateDimensioningDecimalPlaces,
+                    ForceDimensionLineExtensionsOutsideIfTextExists = dimStyle.ForceDimensionLineExtensionsOutsideIfTextIs,
+                    UseSeparateArrowBlocksForDimensions = dimStyle.UseSeparateArrowBlocksForDimensions,
+                    ForceDimensionTextInsideExtensions = dimStyle.ForceDimensionTextInsideExtensions,
+                    SuppressOutsideExtensionDimensionLines = dimStyle.SuppressOutsideExtensionDimensionLines,
+                    DimensionLineColor = dimStyle.DimensionLineColor.ToDxfColor(),
+                    DimensionExtensionLineColor = dimStyle.DimensionExtensionLineColor.ToDxfColor(),
+                    DimensionTextColor = dimStyle.DimensionTextColor.ToDxfColor(),
+                    DimensionUnitFormat = (DxfUnitFormat)dimStyle.DimensionUnitFormat,
+                    DimensionUnitToleranceDecimalPlaces = dimStyle.DimensionUnitToleranceDecimalPlaces,
+                    DimensionToleranceDecimalPlaces = dimStyle.DimensionToleranceDecimalPlaces,
+                    AlternateDimensioningUnits = (DxfUnitFormat)dimStyle.AlternateDimensioningUnits,
+                    AlternateDimensioningToleranceDecimalPlaces = dimStyle.AlternateDimensioningToleranceDecimalPlaces,
+                    DimensioningAngleFormat = (DxfAngleFormat)dimStyle.DimensioningAngleFormat,
+                    DimensionTextJustification = (DxfDimensionTextJustification)dimStyle.DimensionTextJustification,
+                    DimensionToleranceVerticalJustification = (DxfJustification)dimStyle.DimensionToleranceVerticalJustification,
+                    DimensionToleranceZeroSuppression = (DxfToleranceZeroSuppression)dimStyle.DimensionToleranceZeroSuppression,
+                    AlternateDimensioningZeroSuppression = (DxfAlternateUnitZeroSuppression)dimStyle.AlternateDimensioningZeroSupression,
+                    AlternateDimensioningToleranceZeroSuppression = (DxfAlternateToleranceZeroSuppression)dimStyle.AlternateDimensioningToleranceZeroSupression,
+                    DimensionTextAndArrowPlacement = (DxfDimensionFit)dimStyle.DimensionTextAndArrowPlacement,
+                    DimensionCursorControlsTextPosition = dimStyle.DimensionCursorControlsTextPosition,
+                };
+                result.DimensionStyles.Add(dxfDimStyle);
+            }
+
             // layers
             foreach (var layer in source.Layers.Values)
             {
@@ -261,6 +323,8 @@ namespace IxMilia.Converters
             {
                 DwgArc arc => arc.ToDxfArc(),
                 DwgCircle circle => circle.ToDxfCircle(),
+                DwgDimensionAligned aligned => aligned.ToDxfAlignedDimension(),
+                DwgDimensionOrdinate ordinate => ordinate.ToDxfRotatedDimension(),
                 DwgEllipse ellipse => ellipse.ToDxfEllipse(),
                 DwgInsert insert => insert.ToDxfInsert(),
                 DwgLine line => line.ToDxfLine(),

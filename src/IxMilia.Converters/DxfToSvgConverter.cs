@@ -96,6 +96,7 @@ namespace IxMilia.Converters
             }
 
             // ...now do lines and text
+            var dimStyles = file.DimensionStyles.ToDictionary(d => d.Name, d => d);
             foreach (var layer in file.Layers.OrderBy(layer => layer.Name))
             {
                 worldGroup.Add(new XComment($" layer '{layer.Name}' "));
@@ -110,7 +111,7 @@ namespace IxMilia.Converters
 
                 foreach (var entity in file.Entities.Where(entity => entity.Layer == layer.Name && entity.EntityType != DxfEntityType.Image))
                 {
-                    var element = await entity.ToXElement(options);
+                    var element = await entity.ToXElement(options, dimStyles, file.Header.DrawingUnits, file.Header.UnitFormat, file.Header.UnitPrecision);
                     if (element != null)
                     {
                         layerGroup.Add(element);
@@ -286,7 +287,7 @@ namespace IxMilia.Converters
             return value.ToString("0.0##############", CultureInfo.InvariantCulture);
         }
 
-        public static async Task<XElement> ToXElement(this DxfEntity entity, DxfToSvgConverterOptions options)
+        public static async Task<XElement> ToXElement(this DxfEntity entity, DxfToSvgConverterOptions options, Dictionary<string, DxfDimStyle> dimStyles, DxfDrawingUnits drawingUnits, DxfUnitFormat unitFormat, int unitPrecision)
         {
             // elements are simply flattened in the z plane; the world transform in the main function handles the rest
             switch (entity)
@@ -295,6 +296,8 @@ namespace IxMilia.Converters
                     return arc.ToXElement();
                 case DxfCircle circle:
                     return circle.ToXElement();
+                case DxfDimensionBase dim:
+                    return dim.ToXElement(dimStyles, drawingUnits, unitFormat, unitPrecision);
                 case DxfEllipse ellipse:
                     return ellipse.ToXElement();
                 case DxfImage image:
@@ -306,7 +309,7 @@ namespace IxMilia.Converters
                 case DxfPolyline polyline:
                     return polyline.ToXElement();
                 case DxfInsert insert:
-                    return await insert.ToXElement(options);
+                    return await insert.ToXElement(options, dimStyles, drawingUnits, unitFormat, unitPrecision);
                 case DxfSpline spline:
                     return spline.ToXElement();
                 case DxfText text:
@@ -338,6 +341,103 @@ namespace IxMilia.Converters
                 .AddStroke(circle.Color)
                 .AddStrokeWidth(circle.Thickness)
                 .AddVectorEffect();
+        }
+
+        public static XElement ToXElement(this DxfDimensionBase dim, Dictionary<string, DxfDimStyle> dimStyles, DxfDrawingUnits drawingUnits, DxfUnitFormat unitFormat, int unitPrecision)
+        {
+            if (!dimStyles.TryGetValue(dim.DimensionStyleName, out var dimStyle))
+            {
+                // we need _something_
+                dimStyle = new DxfDimStyle(dim.DimensionStyleName);
+            }
+
+            DxfPoint definitionPoint1, definitionPoint2, definitionPoint3;
+            bool isAligned;
+            switch (dim.DimensionType)
+            {
+                case DxfDimensionType.Aligned:
+                    var aligned = (DxfAlignedDimension)dim;
+                    definitionPoint1 = aligned.DefinitionPoint1;
+                    definitionPoint2 = aligned.DefinitionPoint2;
+                    definitionPoint3 = aligned.DefinitionPoint3;
+                    isAligned = true;
+                    break;
+                case DxfDimensionType.RotatedHorizontalOrVertical:
+                    var rotated = (DxfRotatedDimension)dim;
+                    definitionPoint1 = rotated.DefinitionPoint1;
+                    definitionPoint2 = rotated.DefinitionPoint2;
+                    definitionPoint3 = rotated.DefinitionPoint3;
+                    isAligned = false;
+                    break;
+                default:
+                    return null;
+            }
+
+            return CreateForDimension(definitionPoint2, definitionPoint3, definitionPoint1, dim.Text, dim.Color, dimStyle.DimensionTextColor, isAligned, dimStyle, drawingUnits, unitFormat, unitPrecision);
+        }
+
+        private static XElement CreateForDimension(
+            DxfPoint dimDefinitionPoint1,
+            DxfPoint dimDefinitionPoint2,
+            DxfPoint dimDefinitionPoint3,
+            string text,
+            DxfColor lineColor,
+            DxfColor textColor,
+            bool isAligned,
+            DxfDimStyle dimStyle,
+            DxfDrawingUnits drawingUnits,
+            DxfUnitFormat unitFormat,
+            int unitPrecision)
+        {
+            var dimensionSettings = dimStyle.ToDimensionSettings();
+            if (text is null || text == "<>")
+            {
+                // compute and format
+                var tempDimensionProperties = LinearDimensionProperties.BuildFromValues(
+                    dimDefinitionPoint1.ToVector(),
+                    dimDefinitionPoint2.ToVector(),
+                    dimDefinitionPoint3.ToVector(),
+                    isAligned,
+                    null,
+                    0.0,
+                    dimensionSettings);
+                text = DimensionExtensions.GenerateLinearDimensionText(tempDimensionProperties.DimensionLength, drawingUnits.ToDrawingUnits(), unitFormat.ToUnitFormat(), unitPrecision);
+            }
+            else if (text == " ")
+            {
+                // suppress and display no gap
+                text = string.Empty;
+            }
+
+            var textWidth = dimStyle.DimensioningTextHeight * text.Length * 0.6; // this is really bad
+            var dimensionProperties = LinearDimensionProperties.BuildFromValues(
+                dimDefinitionPoint1.ToVector(),
+                dimDefinitionPoint2.ToVector(),
+                dimDefinitionPoint3.ToVector(),
+                isAligned,
+                text,
+                textWidth,
+                dimensionSettings);
+
+            var textTemp = new DxfText(dimensionProperties.TextLocation.ToDxfPoint(), dimStyle.DimensioningTextHeight, text)
+            {
+                Color = textColor ?? dimStyle.DimensionTextColor,
+                Rotation = dimensionProperties.DimensionLineAngle * 180.0 / Math.PI,
+            };
+            var textXElement = textTemp.ToXElement();
+
+            return new XElement(DxfToSvgConverter.Xmlns + "g",
+                new XComment(" dimension "),
+                dimensionProperties.DimensionLineSegments.Select(s =>
+                    new XElement(DxfToSvgConverter.Xmlns + "line",
+                        new XAttribute("x1", s.Start.X.ToDisplayString()),
+                        new XAttribute("y1", s.Start.Y.ToDisplayString()),
+                        new XAttribute("x2", s.End.X.ToDisplayString()),
+                        new XAttribute("y2", s.End.Y.ToDisplayString()))
+                        .AddStroke(lineColor ?? dimStyle.DimensionLineColor)
+                        .AddVectorEffect()),
+                textXElement
+            );
         }
 
         public static XElement ToXElement(this DxfEllipse ellipse)
@@ -418,14 +518,14 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
-        public static async Task<XElement> ToXElement(this DxfInsert insert, DxfToSvgConverterOptions options)
+        public static async Task<XElement> ToXElement(this DxfInsert insert, DxfToSvgConverterOptions options, Dictionary<string, DxfDimStyle> dimStyles, DxfDrawingUnits drawingUnits, DxfUnitFormat unitFormat, int unitPrecision)
         {
             var g = new XElement(DxfToSvgConverter.Xmlns + "g",
                 new XAttribute("class", $"dxf-insert {insert.Name}"),
                 new XAttribute("transform", $"translate({insert.Location.X.ToDisplayString()} {insert.Location.Y.ToDisplayString()}) scale({insert.XScaleFactor.ToDisplayString()} {insert.YScaleFactor.ToDisplayString()})"));
             foreach (var blockEntity in insert.Entities)
             {
-                g.Add(await blockEntity.ToXElement(options));
+                g.Add(await blockEntity.ToXElement(options, dimStyles, drawingUnits, unitFormat, unitPrecision));
             }
 
             return g;

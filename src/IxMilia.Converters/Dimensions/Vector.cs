@@ -1,5 +1,4 @@
-﻿using IxMilia.Dxf;
-using IxMilia.Pdf;
+﻿using System;
 
 namespace IxMilia.Converters
 {
@@ -9,6 +8,10 @@ namespace IxMilia.Converters
         public double Y { get; }
         public double Z { get; }
 
+        public double LengthSquared => X * X + Y * Y + Z * Z;
+
+        public double Length => Math.Sqrt(LengthSquared);
+
         public Vector(double x, double y, double z)
             : this()
         {
@@ -17,14 +20,19 @@ namespace IxMilia.Converters
             this.Z = z;
         }
 
-        public static implicit operator Vector(DxfPoint point)
+        public Vector Cross(Vector other)
         {
-            return new Vector(point.X, point.Y, point.Z);
+            return new Vector(this.Y * other.Z - this.Z * other.Y, this.Z * other.X - this.X * other.Z, this.X * other.Y - this.Y * other.X);
         }
 
-        public PdfPoint ToPdfPoint(PdfMeasurementType measurementType)
+        public double Dot(Vector other)
         {
-            return new PdfPoint(new PdfMeasurement(X, measurementType), new PdfMeasurement(Y, measurementType));
+            return this.X * other.X + this.Y * other.Y + this.Z * other.Z;
+        }
+
+        public Vector Normalize()
+        {
+            return this / this.Length;
         }
 
         public static bool operator ==(Vector p1, Vector p2)

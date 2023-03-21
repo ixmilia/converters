@@ -48,6 +48,32 @@ namespace IxMilia.Converters
             }.WithCommonProperties(circle);
         }
 
+        public static DxfAlignedDimension ToDxfAlignedDimension(this DwgDimensionAligned aligned)
+        {
+            return new DxfAlignedDimension()
+            {
+                DefinitionPoint1 = aligned.FirstDefinitionPoint.ToDxfPoint(),
+                DefinitionPoint2 = aligned.SecondDefinitionPoint.ToDxfPoint(),
+                DefinitionPoint3 = aligned.ThirdDefinitionPoint.ToDxfPoint(),
+                DimensionStyleName = aligned.DimensionStyle.Name,
+                Text = aligned.Text,
+                TextMidPoint = aligned.TextMidpoint.ToDxfPoint(),
+            }.WithCommonProperties(aligned);
+        }
+
+        public static DxfRotatedDimension ToDxfRotatedDimension(this DwgDimensionOrdinate ordinate)
+        {
+            return new DxfRotatedDimension()
+            {
+                DefinitionPoint1 = ordinate.FirstDefinitionPoint.ToDxfPoint(),
+                DefinitionPoint2 = ordinate.SecondDefinitionPoint.ToDxfPoint(),
+                DefinitionPoint3 = ordinate.ThirdDefinitionPoint.ToDxfPoint(),
+                DimensionStyleName = ordinate.DimensionStyle.Name,
+                Text = ordinate.Text,
+                TextMidPoint = ordinate.TextMidpoint.ToDxfPoint(),
+            }.WithCommonProperties(ordinate);
+        }
+
         public static DxfEllipse ToDxfEllipse(this DwgEllipse ellipse)
         {
             return new DxfEllipse(ellipse.Center.ToDxfPoint(), ellipse.MajorAxis.ToDxfVector(), ellipse.MinorAxisRatio)
@@ -161,6 +187,31 @@ namespace IxMilia.Converters
             }
 
             return entity;
+        }
+
+        public static DwgBlock EnsureBlock(this DwgDrawing drawing, DwgLayer layer, string name)
+        {
+            if (!drawing.BlockHeaders.ContainsKey(name))
+            {
+                var blockHeader = DwgBlockHeader.CreateBlockRecordWithName(name, layer);
+                drawing.BlockHeaders.Add(blockHeader);
+            }
+
+            return drawing.BlockHeaders[name].Block;
+        }
+
+        public static DwgDimStyle EnsureDimensionStyle(this DwgDrawing drawing, string name)
+        {
+            if (!drawing.DimStyles.ContainsKey(name))
+            {
+                var dwgDimStyle = new DwgDimStyle(name)
+                {
+                    // TODO
+                };
+                drawing.DimStyles.Add(dwgDimStyle);
+            }
+
+            return drawing.DimStyles[name];
         }
 
         public static DwgLineType EnsureLineType(this DwgDrawing drawing, string name)

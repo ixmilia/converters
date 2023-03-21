@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using IxMilia.Dwg.Objects;
 using IxMilia.Dxf;
 using IxMilia.Dxf.Entities;
 using IxMilia.Pdf;
@@ -69,13 +70,14 @@ namespace IxMilia.Converters
             pdf.Pages.Add(page);
 
             var builder = new PdfPathBuilder();
+            var dimStyles = source.DimensionStyles.ToDictionary(d => d.Name, d => d);
 
             // do images first so lines and text appear on top...
             foreach (var layer in source.Layers.Where(l => l.IsLayerOn))
             {
                 foreach (var image in source.Entities.OfType<DxfImage>().Where(i => i.Layer == layer.Name))
                 {
-                    await TryConvertEntity(image, layer, transform, builder, page, options);
+                    await TryConvertEntity(image, layer, dimStyles, source.Header.DrawingUnits, source.Header.UnitFormat, source.Header.UnitPrecision, transform, builder, page, options);
                 }
             }
 
@@ -84,7 +86,7 @@ namespace IxMilia.Converters
             {
                 foreach (var entity in source.Entities.Where(e => e.Layer == layer.Name && e.EntityType != DxfEntityType.Image))
                 {
-                    await TryConvertEntity(entity, layer, transform, builder, page, options);
+                    await TryConvertEntity(entity, layer, dimStyles, source.Header.DrawingUnits, source.Header.UnitFormat, source.Header.UnitPrecision, transform, builder, page, options);
                     // if that failed, emit some diagnostic hint? Callback?
                 }
             }
@@ -138,10 +140,12 @@ namespace IxMilia.Converters
         #region Entity Conversions
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static async Task<bool> TryConvertEntity(DxfEntity entity, DxfLayer layer, Matrix4 transform, PdfPathBuilder builder, PdfPage page, DxfToPdfConverterOptions options)
+        internal static async Task<bool> TryConvertEntity(DxfEntity entity, DxfLayer layer, Dictionary<string, DxfDimStyle> dimStyles, DxfDrawingUnits drawingUnits, DxfUnitFormat unitFormat, int unitPrecision, Matrix4 transform, PdfPathBuilder builder, PdfPage page, DxfToPdfConverterOptions options)
         {
             switch (entity)
             {
+                case DxfDimensionBase dim:
+                    return ConvertDimension(dim, layer, dimStyles, drawingUnits, unitFormat, unitPrecision, transform, builder, page);
                 case DxfText text:
                     // TODO flush path builder and recreate
                     page.Items.Add(ConvertText(text, layer, transform));
@@ -189,6 +193,87 @@ namespace IxMilia.Converters
             }
         }
 
+        private static bool ConvertDimension(DxfDimensionBase dim, DxfLayer layer, Dictionary<string, DxfDimStyle> dimStyles, DxfDrawingUnits drawingUnits, DxfUnitFormat unitFormat, int unitPrecision, Matrix4 transform, PdfPathBuilder builder, PdfPage page)
+        {
+            var point1 = new Vector();
+            var point2 = new Vector();
+            var point3 = new Vector();
+            var isAligned = false;
+            switch (dim.DimensionType)
+            {
+                case DxfDimensionType.Aligned:
+                    var aligned = (DxfAlignedDimension)dim;
+                    point1 = aligned.DefinitionPoint2.ToVector();
+                    point2 = aligned.DefinitionPoint3.ToVector();
+                    point3 = aligned.DefinitionPoint1.ToVector();
+                    isAligned = true;
+                    break;
+                case DxfDimensionType.RotatedHorizontalOrVertical:
+                    var rotated = (DxfRotatedDimension)dim;
+                    point1 = rotated.DefinitionPoint2.ToVector();
+                    point2 = rotated.DefinitionPoint3.ToVector();
+                    point3 = rotated.DefinitionPoint1.ToVector();
+                    isAligned = false;
+                    break;
+                default:
+                    return false;
+            }
+
+            var dimStyle = dimStyles[dim.DimensionStyleName];
+            var dimensionSettings = dimStyle.ToDimensionSettings();
+            var text = dim.Text;
+            if (text is null || text == "<>")
+            {
+                // compute and format
+                var tempDimensionProperties = LinearDimensionProperties.BuildFromValues(
+                    point1,
+                    point2,
+                    point3,
+                    isAligned,
+                    null,
+                    0.0,
+                    dimensionSettings);
+                text = DimensionExtensions.GenerateLinearDimensionText(tempDimensionProperties.DimensionLength, drawingUnits.ToDrawingUnits(), unitFormat.ToUnitFormat(), unitPrecision);
+            }
+            else if (text == " ")
+            {
+                // suppress and display no gap
+                text = string.Empty;
+            }
+
+            var textWidth = dimStyle.DimensioningTextHeight * text.Length * 0.6; // this is really bad
+            var dimensionProperties = LinearDimensionProperties.BuildFromValues(
+                point1,
+                point2,
+                point3,
+                isAligned,
+                text,
+                textWidth,
+                dimensionSettings);
+            foreach (var item in dimensionProperties.DimensionLineSegments.SelectMany(s =>
+                {
+                    var line = new DxfLine(s.Start.ToDxfPoint(), s.End.ToDxfPoint())
+                    {
+                        Color = dim.Color,
+                        Layer = dim.Layer,
+                    };
+                    return ConvertLine(line, layer, transform);
+                }))
+            {
+                builder.Add(item);
+            }
+
+            var dxfText = new DxfText(dimensionProperties.TextLocation.ToDxfPoint(), dimStyle.DimensioningTextHeight, text)
+            {
+                Color = dim.Color,
+                Layer = dim.Layer,
+                Rotation = dimensionProperties.DimensionLineAngle * 180.0 / Math.PI,
+            };
+            page.Items.Add(ConvertText(dxfText, layer, transform));
+
+            return true;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static PdfText ConvertText(DxfText text, DxfLayer layer, Matrix4 transform)
         {
@@ -197,17 +282,17 @@ namespace IxMilia.Converters
             // TODO IsTextUpsideDown, IsTextBackwards
             // TODO RelativeXScaleFactor
             // TODO TextHeight unit? Same as other scale?
-            // TODO TextStyleName probably maps to something meaningfull (bold, italic, etc?)
+            // TODO TextStyleName probably maps to something meaningful (bold, italic, etc?)
             var rotationAngleInRadians = text.Rotation * Math.PI / 180.0;
             var fontSize = transform.TransformedScale(0.0, text.TextHeight).ToPdfPoint(PdfMeasurementType.Point).Y;
-            PdfPoint location = transform.Transform(text.Location).ToPdfPoint(PdfMeasurementType.Point);
+            PdfPoint location = transform.Transform(text.Location.ToVector()).ToPdfPoint(PdfMeasurementType.Point);
             var pdfStreamState = new PdfStreamState(GetPdfColor(text, layer));
             return new PdfText(text.Value, Font, fontSize, location, rotationAngleInRadians, pdfStreamState);
         }
 
         private static IEnumerable<IPdfPathItem> ConvertPoint(DxfModelPoint point, DxfLayer layer, Matrix4 transform)
         {
-            var p = transform.Transform(point.Location).ToPdfPoint(PdfMeasurementType.Point);
+            var p = transform.Transform(point.Location.ToVector()).ToPdfPoint(PdfMeasurementType.Point);
             var thickness = transform.TransformedScale(point.Thickness, 0.0).ToPdfPoint(PdfMeasurementType.Point).X;
             if (thickness.RawValue < 1)
             {
@@ -223,8 +308,8 @@ namespace IxMilia.Converters
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static IEnumerable<IPdfPathItem> ConvertLine(DxfLine line, DxfLayer layer, Matrix4 transform)
         {
-            var p1 = transform.Transform(line.P1).ToPdfPoint(PdfMeasurementType.Point);
-            var p2 = transform.Transform(line.P2).ToPdfPoint(PdfMeasurementType.Point);
+            var p1 = transform.Transform(line.P1.ToVector()).ToPdfPoint(PdfMeasurementType.Point);
+            var p2 = transform.Transform(line.P2.ToVector()).ToPdfPoint(PdfMeasurementType.Point);
             var pdfStreamState = new PdfStreamState(
                 strokeColor: GetPdfColor(line, layer),
                 strokeWidth: GetStrokeWidth(line, layer));
@@ -238,7 +323,7 @@ namespace IxMilia.Converters
                 strokeColor: GetPdfColor(circle, layer),
                 strokeWidth: GetStrokeWidth(circle, layer));
             // a circle becomes an ellipse, unless aspect ratio is kept.
-            var center = transform.Transform(circle.Center).ToPdfPoint(PdfMeasurementType.Point);
+            var center = transform.Transform(circle.Center.ToVector()).ToPdfPoint(PdfMeasurementType.Point);
             var radius = transform.TransformedScale(new Vector(circle.Radius, circle.Radius, circle.Radius))
                 .ToPdfPoint(PdfMeasurementType.Point);
             yield return new PdfEllipse(center, radius.X, radius.Y, state: pdfStreamState);
@@ -250,7 +335,7 @@ namespace IxMilia.Converters
             var pdfStreamState = new PdfStreamState(
                 strokeColor: GetPdfColor(arc, layer),
                 strokeWidth: GetStrokeWidth(arc, layer));
-            var center = transform.Transform(arc.Center).ToPdfPoint(PdfMeasurementType.Point);
+            var center = transform.Transform(arc.Center.ToVector()).ToPdfPoint(PdfMeasurementType.Point);
             var radius = transform.TransformedScale(new Vector(arc.Radius, arc.Radius, arc.Radius))
                 .ToPdfPoint(PdfMeasurementType.Point);
             const double rotation = 0;
