@@ -332,6 +332,7 @@ namespace IxMilia.Converters
                 DwgLwPolyline lwpolyline => lwpolyline.ToDxfLwPolyline(),
                 DwgPolyline2D polyline2d => polyline2d.ToDxfPolyline(),
                 DwgPolyline3D polyline3D => polyline3D.ToDxfPolyline(),
+                DwgSolid solid => solid.ToDxfSolid(),
                 DwgSpline spline => spline.ToDxfSpline(),
                 DwgText text => text.ToDxfText(),
                 _ => null,

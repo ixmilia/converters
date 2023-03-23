@@ -310,6 +310,8 @@ namespace IxMilia.Converters
                     return polyline.ToXElement();
                 case DxfInsert insert:
                     return await insert.ToXElement(options, dimStyles, drawingUnits, unitFormat, unitPrecision);
+                case DxfSolid solid:
+                    return solid.ToXElement();
                 case DxfSpline spline:
                     return spline.ToXElement();
                 case DxfText text:
@@ -529,6 +531,19 @@ namespace IxMilia.Converters
             }
 
             return g;
+        }
+
+        public static XElement ToXElement(this DxfSolid solid)
+        {
+            var p1 = $"{solid.FirstCorner.X.ToDisplayString()},{solid.FirstCorner.Y.ToDisplayString()}";
+            var p2 = $"{solid.SecondCorner.X.ToDisplayString()},{solid.SecondCorner.Y.ToDisplayString()}";
+            var p3 = $"{solid.FourthCorner.X.ToDisplayString()},{solid.FourthCorner.Y.ToDisplayString()}"; // n.b., the dxf representation of a solid swaps the last two vertices
+            var p4 = $"{solid.ThirdCorner.X.ToDisplayString()},{solid.ThirdCorner.Y.ToDisplayString()}";
+            return new XElement(DxfToSvgConverter.Xmlns + "polygon",
+                new XAttribute("points", $"{p1} {p2} {p3} {p4}"))
+                .AddFill(solid.Color)
+                .AddStroke(solid.Color)
+                .AddVectorEffect();
         }
 
         public static XElement ToXElement(this DxfSpline spline)

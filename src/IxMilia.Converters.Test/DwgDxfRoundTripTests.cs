@@ -292,5 +292,22 @@ namespace IxMilia.Converters.Test
             Assert.Equal(e1.Text, e2.Text);
             Assert.Equal(e1.TextMidPoint, e2.TextMidPoint);
         }
+
+        [Fact]
+        public async Task RoundTripSolid()
+        {
+            var e1 = new DxfSolid()
+            {
+                FirstCorner = new DxfPoint(1.0, 2.0, 0.0),
+                SecondCorner = new DxfPoint(3.0, 4.0, 0.0),
+                ThirdCorner = new DxfPoint(5.0, 6.0, 0.0),
+                FourthCorner = new DxfPoint(7.0, 8.0, 0.0),
+            };
+            var e2 = await RoundTrip(e1, roundTripThroughStreams: true);
+            Assert.Equal(e1.FirstCorner, e2.FirstCorner);
+            Assert.Equal(e1.SecondCorner, e2.SecondCorner);
+            Assert.Equal(e1.ThirdCorner, e2.ThirdCorner);
+            Assert.Equal(e1.FourthCorner, e2.FourthCorner);
+        }
     }
 }

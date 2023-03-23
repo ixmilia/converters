@@ -401,6 +401,9 @@ namespace IxMilia.Converters
                 case DxfRotatedDimension rotated:
                     AddToDrawing(rotated.ToDwgRotatedDimension(drawing), rotated.Layer, rotated.LineTypeName);
                     break;
+                case DxfSolid solid:
+                    AddToDrawing(solid.ToDwgSolid(), solid.Layer, solid.LineTypeName);
+                    break;
                 case DxfSpline spline:
                     AddToDrawing(spline.ToDwgSpline(), spline.Layer, entity.LineTypeName);
                     break;

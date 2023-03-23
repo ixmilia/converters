@@ -180,6 +180,9 @@ namespace IxMilia.Converters
                     {
                         return false;
                     }
+                case DxfSolid solid:
+                    Add(ConvertSolid(solid, layer, transform), builder);
+                    return true;
                 default:
                     return false;
             }
@@ -440,6 +443,18 @@ namespace IxMilia.Converters
                 var next = vertices[0];
                 yield return ConvertPolylineSegment(vertex, next, transform, pdfStreamState);
             }
+        }
+
+        private static IEnumerable<IPdfPathItem> ConvertSolid(DxfSolid solid, DxfLayer layer, Matrix4 transform)
+        {
+            var p1 = transform.Transform(solid.FirstCorner.ToVector()).ToPdfPoint(PdfMeasurementType.Point);
+            var p2 = transform.Transform(solid.SecondCorner.ToVector()).ToPdfPoint(PdfMeasurementType.Point);
+            var p3 = transform.Transform(solid.FourthCorner.ToVector()).ToPdfPoint(PdfMeasurementType.Point); // n.b., the dxf representation of a solid swaps the last two vertices
+            var p4 = transform.Transform(solid.ThirdCorner.ToVector()).ToPdfPoint(PdfMeasurementType.Point);
+            var pdfStreamState = new PdfStreamState(
+                strokeColor: GetPdfColor(solid, layer),
+                strokeWidth: GetStrokeWidth(solid, layer));
+            yield return new PdfFilledPolygon(new[] { p1, p2, p3, p4 }, pdfStreamState);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

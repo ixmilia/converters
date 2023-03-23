@@ -151,6 +151,17 @@ namespace IxMilia.Converters
             }.WithCommonProperties(polyline);
         }
 
+        public static DwgSolid ToDwgSolid(this DxfSolid solid)
+        {
+            return new DwgSolid()
+            {
+                FirstCorner = solid.FirstCorner.ToDwgPoint(),
+                SecondCorner = solid.SecondCorner.ToDwgPoint(),
+                ThirdCorner = solid.ThirdCorner.ToDwgPoint(),
+                FourthCorner = solid.FourthCorner.ToDwgPoint(),
+            }.WithCommonProperties(solid);
+        }
+
         public static DwgSpline ToDwgSpline(this DxfSpline spline)
         {
             var result = new DwgSpline()
