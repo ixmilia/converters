@@ -438,6 +438,12 @@ namespace IxMilia.Converters
                         new XAttribute("y2", s.End.Y.ToDisplayString()))
                         .AddStroke(lineColor ?? dimStyle.DimensionLineColor)
                         .AddVectorEffect()),
+                dimensionProperties.DimensionTriangles.Select(t =>
+                    new XElement(DxfToSvgConverter.Xmlns + "polygon",
+                        new XAttribute("points", $"{t.P1.X.ToDisplayString()},{t.P1.Y.ToDisplayString()} {t.P2.X.ToDisplayString()},{t.P2.Y.ToDisplayString()} {t.P3.X.ToDisplayString()},{t.P3.Y.ToDisplayString()}"))
+                        .AddFill(lineColor ?? dimStyle.DimensionLineColor)
+                        .AddStroke(lineColor ?? dimStyle.DimensionLineColor)
+                        .AddVectorEffect()),
                 textXElement
             );
         }

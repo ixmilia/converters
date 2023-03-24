@@ -266,6 +266,20 @@ namespace IxMilia.Converters
                 builder.Add(item);
             }
 
+            foreach (var item in dimensionProperties.DimensionTriangles.Select(s =>
+                {
+                    var p1 = transform.Transform(s.P1).ToPdfPoint(PdfMeasurementType.Point);
+                    var p2 = transform.Transform(s.P2).ToPdfPoint(PdfMeasurementType.Point);
+                    var p3 = transform.Transform(s.P3).ToPdfPoint(PdfMeasurementType.Point);
+                    var pdfStreamState = new PdfStreamState(
+                        strokeColor: ToPdfColor(dim.Color.ToRGB()),
+                        strokeWidth: PdfMeasurement.Points(1.0));
+                    return new PdfFilledPolygon(new[] { p1, p2, p3 }, pdfStreamState);
+                }))
+            {
+                builder.Add(item);
+            }
+
             var dxfText = new DxfText(dimensionProperties.TextLocation.ToDxfPoint(), dimStyle.DimensioningTextHeight, text)
             {
                 Color = dim.Color,

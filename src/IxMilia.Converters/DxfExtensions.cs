@@ -206,7 +206,8 @@ namespace IxMilia.Converters
                 extensionLineOffset: dimStyle.DimensionExtensionLineOffset,
                 extensionLineExtension: dimStyle.DimensionExtensionLineExtension,
                 dimensionLineGap: dimStyle.DimensionLineGap,
-                arrowSize: dimStyle.DimensioningArrowSize);
+                arrowSize: dimStyle.DimensioningArrowSize,
+                tickSize: dimStyle.DimensioningTickSize);
         }
 
         public static UnitFormat ToUnitFormat(this DxfUnitFormat unitFormat)

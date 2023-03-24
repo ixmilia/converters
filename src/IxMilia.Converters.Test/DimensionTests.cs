@@ -52,13 +52,14 @@ namespace IxMilia.Converters.Test
             Assert.Equal(expected.DimensionLineEnd, Round(actual.DimensionLineEnd));
             Assert.Equal(expected.TextLocation, Round(actual.TextLocation));
             Assert.Equal(expected.DimensionLineSegments, Round(actual.DimensionLineSegments));
+            Assert.Equal(expected.DimensionTriangles, Round(actual.DimensionTriangles));
         }
 
         public static IEnumerable<object[]> GenerateLinearDimensionsProperties()
         {
             var sqrt2 = Math.Sqrt(2.0);
 
-            // selection points 0,0 and 3,4, dimension line at 3,5; non-aligned dimension: only measure x-axis
+            // selection points 0,0 and 3,4, dimension line at 3,5; non-aligned dimension: only measure x-axis, generate arrows
             yield return new object[]
             {
                 new Vector(0.0, 0.0, 0.0),
@@ -72,7 +73,46 @@ namespace IxMilia.Converters.Test
                     extensionLineOffset: 0.25,
                     extensionLineExtension: 0.5,
                     dimensionLineGap: 0.125,
-                    arrowSize: sqrt2),
+                    arrowSize: sqrt2,
+                    tickSize: 0.0),
+                new LinearDimensionProperties(
+                    displayText: "A",
+                    dimensionLength: 3.0,
+                    dimensionLineAngle: 0.0,
+                    dimensionLineStart: new Vector(0.0, 5.0, 0.0),
+                    dimensionLineEnd: new Vector(3.0, 5.0, 0.0),
+                    textLocation: new Vector(1.25, 4.5, 0.0),
+                    dimensionLineSegments: new[]
+                    {
+                        (new Vector(0.0, 0.25, 0.0), new Vector(0.0, 5.5, 0.0)), // first extension line
+                        (new Vector(3.0, 4.25, 0.0), new Vector(3.0, 5.5, 0.0)), // second extension line
+                        (new Vector(1.4142, 5.0 ,0.0), new Vector(1.125, 5.0, 0.0)), // first half of dimension line
+                        (new Vector(1.875, 5.0, 0.0), new Vector(1.5858, 5.0, 0.0)), // second half of dimension line
+                    },
+                    dimensionTriangles: new[]
+                    {
+                        (new Vector(0.0, 5.0, 0.0), new Vector(1.4142, 4.7643, 0.0), new Vector(1.4142, 5.2357, 0.0)),
+                        (new Vector(3.0, 5.0, 0.0), new Vector(1.5858, 4.7643, 0.0), new Vector(1.5858, 5.2357, 0.0)),
+                    }
+                ),
+            };
+
+            // selection points 0,0 and 3,4, dimension line at 3,5; non-aligned dimension: only measure x-axis, generate ticks
+            yield return new object[]
+            {
+                new Vector(0.0, 0.0, 0.0),
+                new Vector(3.0, 4.0, 0.0),
+                new Vector(3.0, 5.0, 0.0),
+                false,
+                "A",
+                0.5,
+                new DimensionSettings(
+                    textHeight: 1.0,
+                    extensionLineOffset: 0.25,
+                    extensionLineExtension: 0.5,
+                    dimensionLineGap: 0.125,
+                    arrowSize: sqrt2,
+                    tickSize: sqrt2),
                 new LinearDimensionProperties(
                     displayText: "A",
                     dimensionLength: 3.0,
@@ -88,11 +128,12 @@ namespace IxMilia.Converters.Test
                         (new Vector(1.875, 5.0, 0.0), new Vector(3.0, 5.0, 0.0)), // second half of dimension line
                         (new Vector(-0.5, 4.5, 0.0), new Vector(0.5, 5.5, 0.0)), // first tick
                         (new Vector(2.5, 4.5, 0.0), new Vector(3.5, 5.5, 0.0)), // second tick
-                    }
+                    },
+                    dimensionTriangles: Array.Empty<(Vector, Vector, Vector)>()
                 ),
             };
 
-            // selection points 0,0 and 3,4, dimension line at 3,5; aligned dimension: measure full diagonal
+            // selection points 0,0 and 3,4, dimension line at 3,5; aligned dimension: measure full diagonal, generate arrows
             yield return new object[]
             {
                 new Vector(0.0, 0.0, 0.0),
@@ -106,7 +147,46 @@ namespace IxMilia.Converters.Test
                     extensionLineOffset: 0.25,
                     extensionLineExtension: 0.5,
                     dimensionLineGap: 0.125,
-                    arrowSize: sqrt2),
+                    arrowSize: sqrt2,
+                    tickSize: 0.0),
+                new LinearDimensionProperties(
+                    displayText: "A",
+                    dimensionLength: 5.0,
+                    dimensionLineAngle: 0.9273, // ~53*
+                    dimensionLineStart: new Vector(-0.48, 0.36, 0.0),
+                    dimensionLineEnd:new Vector(2.52, 4.36, 0.0),
+                    textLocation: new Vector(1.27, 1.86, 0.0),
+                    dimensionLineSegments: new[]
+                    {
+                        (new Vector(-0.2, 0.15, 0.0), new Vector(-0.88, 0.66, 0.0)), // first extension line
+                        (new Vector(2.8, 4.15, 0.0), new Vector(2.12, 4.66, 0.0)), // second extension line
+                        (new Vector(0.3685, 1.4914, 0.0), new Vector(0.795, 2.06, 0.0)), // first half of dimension line
+                        (new Vector(1.245, 2.66, 0.0), new Vector(1.6715, 3.2286, 0.0)), // second half of dimension line
+                    },
+                    dimensionTriangles: new[]
+                    {
+                        (new Vector(-0.48, 0.36, 0.0), new Vector(0.5571, 1.3499, 0.0), new Vector(0.18, 1.6328, 0.0)),
+                        (new Vector(2.52, 4.36, 0.0), new Vector(1.86, 3.0872, 0.0), new Vector(1.4829, 3.3701, 0.0)),
+                    }
+                ),
+            };
+
+            // selection points 0,0 and 3,4, dimension line at 3,5; aligned dimension: measure full diagonal, generate ticks
+            yield return new object[]
+            {
+                new Vector(0.0, 0.0, 0.0),
+                new Vector(3.0, 4.0, 0.0),
+                new Vector(3.0, 5.0, 0.0),
+                true,
+                "A",
+                0.5,
+                new DimensionSettings(
+                    textHeight: 1.0,
+                    extensionLineOffset: 0.25,
+                    extensionLineExtension: 0.5,
+                    dimensionLineGap: 0.125,
+                    arrowSize: sqrt2,
+                    tickSize: sqrt2),
                 new LinearDimensionProperties(
                     displayText: "A",
                     dimensionLength: 5.0,
@@ -120,9 +200,10 @@ namespace IxMilia.Converters.Test
                         (new Vector(2.8, 4.15, 0.0), new Vector(2.12, 4.66, 0.0)), // second extension line
                         (new Vector(-0.48, 0.36, 0.0), new Vector(0.795, 2.06, 0.0)), // first half of dimension line
                         (new Vector(1.245, 2.66, 0.0), new Vector(2.52, 4.36, 0.0)), // second half of dimension line
-                        (new Vector(-1.18, 0.46, 0.0), new Vector(0.22, 0.26, 0.0)), // first tick
-                        (new Vector(1.82, 4.46, 0.0), new Vector(3.22, 4.26, 0.0)), // second tick
-                    }
+                        (new Vector(-0.38, -0.34, 0.0), new Vector(-0.58, 1.06, 0.0)), // first tick
+                        (new Vector(2.62, 3.66, 0.0), new Vector(2.42, 5.06, 0.0)), // second tick
+                    },
+                    dimensionTriangles: Array.Empty<(Vector, Vector, Vector)>()
                 ),
             };
         }
@@ -133,6 +214,10 @@ namespace IxMilia.Converters.Test
 
         private static (Vector, Vector) Round((Vector a, Vector b) value) => ((Round(value.a), Round(value.b)));
 
+        private static (Vector, Vector, Vector) Round((Vector a, Vector b, Vector c) value) => ((Round(value.a), Round(value.b), Round(value.c)));
+
         private static (Vector, Vector)[] Round((Vector, Vector)[] value) => value.Select(Round).ToArray();
+
+        private static (Vector, Vector, Vector)[] Round((Vector, Vector, Vector)[] value) => value.Select(Round).ToArray();
     }
 }

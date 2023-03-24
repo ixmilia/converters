@@ -35,6 +35,17 @@ namespace IxMilia.Converters
             return this / this.Length;
         }
 
+        public Vector RotateAboutOrigin(double angle)
+        {
+            var cos = Math.Cos(angle);
+            var sin = Math.Sin(angle);
+            var result = new Vector(
+                X * cos - Y * sin,
+                Y * cos + X * sin,
+                Z);
+            return result;
+        }
+
         public static bool operator ==(Vector p1, Vector p2)
         {
             if (object.ReferenceEquals(p1, p2))
