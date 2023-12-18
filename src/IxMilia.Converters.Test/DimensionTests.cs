@@ -1,12 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Xunit;
 
 namespace IxMilia.Converters.Test
 {
-    public class DimensionTests
+    public class DimensionTests : IDisposable
     {
+        private readonly CultureInfo originalCulture;
+        private bool disposedValue;
+
+        public DimensionTests()
+        {
+            // Store the original culture
+            originalCulture = CultureInfo.CurrentCulture;
+
+            // Set the desired culture (e.g., en-US)
+            var culture = new CultureInfo("en-US");
+            CultureInfo.CurrentCulture = culture;
+            CultureInfo.CurrentUICulture = culture;
+        }
+
         [Theory]
         [InlineData(3.0, "3", 0, DrawingUnits.English, UnitFormat.Decimal)] // nearest whole number
         [InlineData(3.4, "3", 0, DrawingUnits.English, UnitFormat.Decimal)]
@@ -219,5 +234,38 @@ namespace IxMilia.Converters.Test
         private static (Vector, Vector)[] Round((Vector, Vector)[] value) => value.Select(Round).ToArray();
 
         private static (Vector, Vector, Vector)[] Round((Vector, Vector, Vector)[] value) => value.Select(Round).ToArray();
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // TODO: Verwalteten Zustand (verwaltete Objekte) bereinigen
+                }
+
+                // TODO: Nicht verwaltete Ressourcen (nicht verwaltete Objekte) freigeben und Finalizer überschreiben
+                // TODO: Große Felder auf NULL setzen
+                disposedValue = true;
+            }
+        }
+
+        // // TODO: Finalizer nur überschreiben, wenn "Dispose(bool disposing)" Code für die Freigabe nicht verwalteter Ressourcen enthält
+        // ~DimensionTests()
+        // {
+        //     // Ändern Sie diesen Code nicht. Fügen Sie Bereinigungscode in der Methode "Dispose(bool disposing)" ein.
+        //     Dispose(disposing: false);
+        // }
+
+        void IDisposable.Dispose()
+        {
+            // Reset the culture to the original value in the Dispose method
+            CultureInfo.CurrentCulture = originalCulture;
+            CultureInfo.CurrentUICulture = originalCulture;
+
+            // Ändern Sie diesen Code nicht. Fügen Sie Bereinigungscode in der Methode "Dispose(bool disposing)" ein.
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
 }
