@@ -1,6 +1,8 @@
-﻿using System;
+﻿using IxMilia.Converters;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using static IxMilia.Dxf.Entities.DxfHatch;
 
 namespace IxMilia.Converters
 {
@@ -116,6 +118,84 @@ namespace IxMilia.Converters
             else
             {
                 segments.AddRange(transfPoints);
+            }
+
+            return new SvgPath(segments);
+        }
+
+        public static SvgPath FromHatch(IList<BoundaryPathEdgeBase> edges)
+        {
+            List<SvgPathSegment> transfPoints = new List<SvgPathSegment>();
+
+            for (int i = 0; i < edges.Count(); i++)
+            {
+                switch (edges[i])
+                {
+                    case LineBoundaryPathEdge lineBoundaryPathEdge:
+                        // Code for LineBoundaryPathEdge case
+                        transfPoints.Add(new SvgLineToPath(lineBoundaryPathEdge.StartPoint.X, lineBoundaryPathEdge.StartPoint.Y));
+                        transfPoints.Add(new SvgLineToPath(lineBoundaryPathEdge.EndPoint.X, lineBoundaryPathEdge.EndPoint.Y));
+                        break;
+
+                    case SplineBoundaryPathEdge splineBoundaryPathEdge:
+                        // Code for OtherType case
+                        foreach (var controlPoint in splineBoundaryPathEdge.ControlPoints)
+                        {
+                            transfPoints.Add(new SvgLineToPath(controlPoint.Point.X, controlPoint.Point.Y));
+                        }
+
+                        break;
+
+                    case EllipticArcBoundaryPathEdge ellipticArcBoundaryPathEdge:
+                        // Code for OtherType case
+                        //throw new NotImplementedException();
+                        var ellips = FromEllipse2(ellipticArcBoundaryPathEdge.Center.X, ellipticArcBoundaryPathEdge.Center.Y,
+                                            ellipticArcBoundaryPathEdge.MajorAxis.X, ellipticArcBoundaryPathEdge.MajorAxis.Y,
+                                            ellipticArcBoundaryPathEdge.MinorAxisRatio,
+                                            ellipticArcBoundaryPathEdge.StartAngle.ToRadian(), ellipticArcBoundaryPathEdge.EndAngle.ToRadian(), false);
+
+                        transfPoints.AddRange(ellips.Segments);
+
+                        break;
+
+                    case BoundaryPathEdgeBase boundaryPathEdgeBase:
+                        // Code for OtherType case
+                        // openpoint - implement case
+                        //throw new NotImplementedException();
+                        break;
+
+                    default:
+                        // Default case
+                        // openpoint - implement case
+                        //throw new NotImplementedException();
+
+                        break;
+                }
+            }
+
+            var segments = new List<SvgPathSegment>();
+            if (transfPoints.Count > 0)
+            {
+
+                if (transfPoints.First().GetType() == typeof(SvgLineToPath))
+                {
+                    var temp = (SvgLineToPath)transfPoints.First();
+                    segments.Add(new SvgMoveToPath(temp.LocationX, temp.LocationY));
+                }
+                else if (transfPoints.First().GetType() == typeof(SvgEllipseLineToPath))
+                {
+                    var temp = (SvgEllipseLineToPath)transfPoints.First();
+                    segments.Add(new SvgMoveToPath(temp.LocationX, temp.LocationY));
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+                segments.AddRange(transfPoints.Skip(1));
+            }
+            else
+            {
+                bool stop = false;
             }
 
             return new SvgPath(segments);
