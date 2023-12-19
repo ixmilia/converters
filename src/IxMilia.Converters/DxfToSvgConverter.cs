@@ -299,7 +299,7 @@ namespace IxMilia.Converters
                 case DxfDimensionBase dim:
                     return dim.ToXElement(dimStyles, drawingUnits, unitFormat, unitPrecision);
                 case DxfEllipse ellipse:
-                    return ellipse.ToXElement();
+                    return ellipse.ToXElement2();
                 case DxfImage image:
                     return await image.ToXElement(options);
                 case DxfLine line:
@@ -470,6 +470,20 @@ namespace IxMilia.Converters
             return baseShape
                 .AddStroke(ellipse.Color)
                 .AddStrokeWidth(1.0)
+                .AddVectorEffect();
+        }
+
+        public static XElement ToXElement2(this DxfEllipse ellipse, int angleResolutionInDegree = 10)
+        {
+            var path = ellipse.GetSvgPath2(angleResolutionInDegree);
+
+            XElement baseShape = new XElement(DxfToSvgConverter.Xmlns + "path",
+                                                new XAttribute("d", path.ToString()));
+
+            baseShape.Add(new XAttribute("fill-opacity", 0));
+            return baseShape
+                .AddStroke(ellipse.Color)
+                .AddStrokeWidth(0)
                 .AddVectorEffect();
         }
 
@@ -649,6 +663,10 @@ namespace IxMilia.Converters
         {
             return SvgPath.FromEllipse(ellipse.Center.X, ellipse.Center.Y, ellipse.MajorAxis.X, ellipse.MajorAxis.Y, ellipse.MinorAxisRatio, ellipse.StartParameter, ellipse.EndParameter);
         }
+        internal static SvgPath GetSvgPath2(this DxfEllipse ellipse, int angleResolutionInDegree = 10)
+        {
+            return SvgPath.FromEllipse2(ellipse.Center.X, ellipse.Center.Y, ellipse.MajorAxis.X, ellipse.MajorAxis.Y, ellipse.MinorAxisRatio, ellipse.StartParameter, ellipse.EndParameter,angleResolutionInDegree: angleResolutionInDegree);
+        }
 
         internal static SvgPath GetSvgPath(this DxfLwPolyline poly)
         {
@@ -708,6 +726,20 @@ namespace IxMilia.Converters
             }
 
             return new SvgPath(segments);
+        }
+
+        public static SvgEllipseLineToPath TransformAngle(this SvgEllipseLineToPath pOriginal, double centerX, double centerY, double alpha)
+        {
+            var corrLocationX = pOriginal.LocationX - centerX;
+            var corrLocationY = pOriginal.LocationY - centerY;
+
+            // X-Koordinate
+            double transX = corrLocationX * Math.Cos(alpha) - corrLocationY * Math.Sin(alpha) + centerX;
+
+            // Y-Koordinate
+            double transY = corrLocationX * Math.Sin(alpha) + corrLocationY * Math.Cos(alpha) + centerY;
+
+            return new SvgEllipseLineToPath(pOriginal.AngleRadian, transX, transY);
         }
 
         private static XElement AddFill(this XElement element, DxfColor color)

@@ -66,6 +66,60 @@ namespace IxMilia.Converters
 
             return new SvgPath(segments);
         }
+
+        public static SvgPath FromEllipse2(double centerX, double centerY, double majorAxisX, double majorAxisY, double minorAxisRatio, double startAngle, double endAngle, bool firstIsMove = true, int angleResolutionInDegree = 10)
+        {
+            while (endAngle < startAngle)
+            {
+                endAngle += Math.PI * 2.0;
+            }
+            MathExtensions.CalcXAxisRotation(majorAxisX, majorAxisY, out var axisAngle, true);
+
+            var majorAxisLength = MathExtensions.Magnitude(majorAxisX, majorAxisY);
+            var minorAxisLength = majorAxisLength * minorAxisRatio;
+
+            // calc line points
+            double angleResolution = ((double)angleResolutionInDegree).ToRadian();
+            double angleSpan = Math.Abs(endAngle - startAngle);
+            int calculatedPoints = (int)Math.Ceiling(angleSpan / angleResolution);
+
+            List<SvgEllipseLineToPath> points = new List<SvgEllipseLineToPath>();
+            for (int i = 0; i < calculatedPoints; i++)
+            {
+                var angle = startAngle + i * angleResolution;
+                var startX = centerX + Math.Cos(angle) * majorAxisLength;
+                var startY = centerY + Math.Sin(angle) * minorAxisLength;
+                points.Add(new SvgEllipseLineToPath(angle, startX, startY));
+            }
+
+            //add end point
+            var endX = centerX + Math.Cos(endAngle) * majorAxisLength;
+            var endY = centerY + Math.Sin(endAngle) * minorAxisLength;
+            points.Add(new SvgEllipseLineToPath(endAngle, endX, endY));
+
+
+            // transform points to given axis angle of the majorAxis
+            List<SvgEllipseLineToPath> transfPoints = new List<SvgEllipseLineToPath>();
+            for (int i = 0; i < points.Count; i++)
+            {
+                transfPoints.Add(points[i].TransformAngle(centerX, centerY, axisAngle));
+            }
+
+
+            // in some cases the ellipse is a part of a path 
+            var segments = new List<SvgPathSegment>();
+            if (firstIsMove)
+            {
+                segments.Add(new SvgMoveToPath(transfPoints.First().LocationX, transfPoints.First().LocationY));
+                segments.AddRange(transfPoints.Skip(1));
+            }
+            else
+            {
+                segments.AddRange(transfPoints);
+            }
+
+            return new SvgPath(segments);
+        }
     }
 
     public abstract class SvgPathSegment
@@ -113,6 +167,17 @@ namespace IxMilia.Converters
                 LocationX.ToDisplayString(),
                 LocationY.ToDisplayString()
             });
+        }
+    }
+
+    public class SvgEllipseLineToPath : SvgLineToPath
+    {
+        public double AngleRadian { get; }
+        public double AngleDegree { get; }
+        public SvgEllipseLineToPath(double angleRadian, double locationX, double locationY) : base(locationX, locationY)
+        {
+            AngleRadian = angleRadian;
+            AngleDegree = angleRadian.ToDegree();
         }
     }
 
