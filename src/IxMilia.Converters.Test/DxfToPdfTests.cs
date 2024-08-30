@@ -48,8 +48,8 @@ namespace IxMilia.Converters.Test
             var expectedEmptyStream = NormalizeCrLf(@"
 stream
 0 w
-0 0 0 RG
-0 0 0 rg
+0.000 0.000 0.000 RG
+0.000 0.000 0.000 rg
 S
 endstream".Trim());
             Assert.Contains(expectedEmptyStream, pdf);
@@ -71,8 +71,8 @@ endstream".Trim());
             var expected = NormalizeCrLf(@"
 stream
 0 w
-0 0 0 RG
-0 0 0 rg
+0.000 0.000 0.000 RG
+0.000 0.000 0.000 rg
 0.00 0.00 m
 306.00 396.00 l
 S
@@ -95,8 +95,8 @@ endstream".Trim());
             var expected = NormalizeCrLf(@"
 stream
 0 w
-0 0 0 RG
-0 0 0 rg
+0.000 0.000 0.000 RG
+0.000 0.000 0.000 rg
 100.00 300.00 m
 200.00 400.00 l
 S
@@ -131,8 +131,8 @@ endstream".Trim());
             var expected = NormalizeCrLf(@"
 stream
 0 w
-0 0 0 RG
-0 0 0 rg
+0.000 0.000 0.000 RG
+0.000 0.000 0.000 rg
 72.00 72.00 m
 144.00 72.00 l
 216.00 144.00 m
@@ -177,8 +177,8 @@ endstream".Trim());
             var expected = NormalizeCrLf(@"
 stream
 0 w
-0 0 0 RG
-0 0 0 rg
+0.000 0.000 0.000 RG
+0.000 0.000 0.000 rg
 72.00 72.00 m
 144.00 72.00 l
 216.00 144.00 m
@@ -256,8 +256,8 @@ endstream".Trim());
             var expected = NormalizeCrLf(@"
 stream
 0 w
-0 0 0 RG
-0 0 0 rg
+0.000 0.000 0.000 RG
+0.000 0.000 0.000 rg
 0.00 0.00 m
 72.00 72.00 l
 S
