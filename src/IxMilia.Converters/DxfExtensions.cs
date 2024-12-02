@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
+using System.Xml.Linq;
 using IxMilia.Dwg;
 using IxMilia.Dwg.Objects;
 using IxMilia.Dxf;
@@ -11,7 +11,7 @@ namespace IxMilia.Converters
     public static class DxfExtensions
     {
         public const double DegreesToRadians = Math.PI / 180.0;
-        
+
         public static DxfPoint GetPointFromAngle(this DxfCircle circle, double angleInDegrees)
         {
             var angleInRadians = angleInDegrees * DegreesToRadians;
@@ -240,6 +240,61 @@ namespace IxMilia.Converters
                 default:
                     throw new ArgumentOutOfRangeException(nameof(drawingUnits));
             }
+        }
+
+        public static XElement? GetPattern(this DxfHatch arc, string patternId)
+        {
+            if (arc.IsPatternDoubled)
+            {
+                throw new NotImplementedException();
+            }
+            if (arc.PatternType != DxfHatchPatternType.Predefined)
+            {
+                throw new NotImplementedException();
+
+            }
+            if (arc.PatternDefinitionLines.Count != 1)
+            {
+                //throw new NotImplementedException();
+                return null;
+            }
+            else
+            {
+
+
+
+
+
+                string colorString = string.Empty;
+                if (arc.Color.IsIndex)
+                {
+                    colorString = arc.Color.ToRGBString();
+
+                }
+
+                var lineDistance = (0.1 * arc.PatternScale * 2).ToDisplayString();
+                // Create pattern element
+                XElement patternElement = new XElement(DxfToSvgConverter.Xmlns + "pattern",
+                    new XAttribute("id", $"{patternId}"),
+                    new XAttribute("patternUnits", "userSpaceOnUse"),
+                    new XAttribute("width", $"{lineDistance}"),
+                    new XAttribute("height", $"{lineDistance}"),
+                    new XAttribute("patternTransform", $"rotate({(arc.PatternDefinitionLines.First().Angle * -1).ToDisplayString()})"));
+
+                // Create line element
+                XElement lineElement = new XElement(DxfToSvgConverter.Xmlns + "line",
+                    new XAttribute("x1", "0"),
+                    new XAttribute("y1", "0"),
+                    new XAttribute("x2", "0"),
+                    new XAttribute("y2", $"{lineDistance}"),
+                    new XAttribute("stroke", $"{colorString}"),
+                    new XAttribute("stroke-width", "1")
+                );
+                // Append rect elements to pattern element
+                patternElement.Add(lineElement);
+                return patternElement;
+            }
+
         }
     }
 }

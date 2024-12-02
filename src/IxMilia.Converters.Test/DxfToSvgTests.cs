@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using IxMilia.Dxf;
@@ -168,6 +169,45 @@ namespace IxMilia.Converters.Test
                 new XAttribute("vector-effect", "non-scaling-stroke"));
             var actual = ellipse.ToXElement();
             AssertXElement(expected, actual);
+        }
+
+        [Fact]
+        public void RenderEllipse2Test()
+        {
+            var ellipse = new DxfEllipse(new DxfPoint(1.0, 2.0, 3.0), new DxfVector(1.0, 0.0, 0.0), 0.5)
+            {
+                StartParameter = 0.0,
+                EndParameter = Math.PI / 2.0 // 90 degrees
+            };
+            var path = ellipse.GetSvgPath2();
+            Assert.Equal(10, path.Segments.Count);
+
+            var move = (SvgMoveToPath)path.Segments[0];
+            AssertClose(2.0, move.LocationX);
+            AssertClose(2.0, move.LocationY);
+
+            var arcSegment = (SvgEllipseLineToPath)path.Segments.Last();
+            AssertClose(1.0, arcSegment.LocationX);
+            AssertClose(2.5, arcSegment.LocationY);
+            //Assert.Equal(1.0, arcSegment.RadiusX);            -> not available any more
+            //Assert.Equal(0.5, arcSegment.RadiusY);            -> not available any more
+            //Assert.Equal(0.0, arcSegment.XAxisRotation);      -> not available any more
+            //Assert.False(arcSegment.IsLargeArc);              -> not available any more
+            //Assert.True(arcSegment.IsCounterClockwiseSweep);  -> not available any more
+
+            var expected = new XElement(DxfToSvgConverter.Xmlns + "path",
+                new XAttribute("d", path.ToString()),
+                new XAttribute("fill-opacity", "0"),
+                new XAttribute("stroke-width", "1.0px"),
+                new XAttribute("vector-effect", "non-scaling-stroke"));
+            var actual = ellipse.ToXElement2();
+
+            AssertXElement(expected, actual);
+
+            //comment in to see the result
+            //now it's just an approximation with a resolution of 10 degrees
+            //expected.SetAttributeValue("stroke", "red");
+            //expected.AssertExpected(actual, MethodBase.GetCurrentMethod().Name);
         }
 
         [Fact]

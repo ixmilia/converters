@@ -9,6 +9,7 @@ using System.Xml;
 using System.Xml.Linq;
 using IxMilia.Dxf;
 using IxMilia.Dxf.Entities;
+using static IxMilia.Dxf.Entities.DxfHatch;
 
 namespace IxMilia.Converters
 {
@@ -299,7 +300,7 @@ namespace IxMilia.Converters
                 case DxfDimensionBase dim:
                     return dim.ToXElement(dimStyles, drawingUnits, unitFormat, unitPrecision);
                 case DxfEllipse ellipse:
-                    return ellipse.ToXElement();
+                    return ellipse.ToXElement2();
                 case DxfImage image:
                     return await image.ToXElement(options);
                 case DxfLine line:
@@ -316,6 +317,8 @@ namespace IxMilia.Converters
                     return spline.ToXElement();
                 case DxfText text:
                     return text.ToXElement();
+                case DxfHatch hatch:
+                    return hatch.ToXElement();
                 default:
                     return null;
             }
@@ -343,6 +346,56 @@ namespace IxMilia.Converters
                 .AddStroke(circle.Color)
                 .AddStrokeWidth(circle.Thickness)
                 .AddVectorEffect();
+        }
+
+        static int randomId = 1;
+        public static XElement ToXElement(this DxfHatch arc, bool drawStroke = false)
+        {
+            List<XElement> hatchElements = new List<XElement>();
+
+            var hatches = new XElement(DxfToSvgConverter.Xmlns + "g");
+            foreach (var boundaryPath in arc.BoundaryPaths)
+            {
+                switch (boundaryPath)
+                {
+                    case NonPolylineBoundaryPath nonPolylineBoundaryPath:
+
+                        var paths = nonPolylineBoundaryPath.Edges.GetSvgPath();
+                        string patternId = $"{arc.PatternName.ToUpper()}_{randomId}";
+                        var patternElement = arc.GetPattern(patternId);
+
+                        if (patternElement is not null)
+                        {
+
+                            var boundary = new XElement(DxfToSvgConverter.Xmlns + "path",
+                                                new XAttribute("d", paths.ToString()));
+                            boundary.Add(new XAttribute("fill-opacity", 1));
+
+                            if (!drawStroke)
+                            {
+                                boundary.Add(new XAttribute("stroke-width", 0));
+                            }
+                            boundary.Add(new XAttribute("fill", $"url(#{patternId})"));
+                            hatchElements.Add(patternElement);
+                            hatchElements.Add(boundary);
+                            randomId++;
+                        }
+                        break;
+
+                    case PolylineBoundaryPath polylineBoundaryPath:
+                        throw new NotImplementedException();
+                        break;
+
+                    default:
+                        throw new NotImplementedException();
+
+                        break;
+                }
+
+            }
+            hatches.Add(hatchElements);
+
+            return hatches;
         }
 
         public static XElement ToXElement(this DxfDimensionBase dim, Dictionary<string, DxfDimStyle> dimStyles, DxfDrawingUnits drawingUnits, DxfUnitFormat unitFormat, int unitPrecision)
@@ -470,6 +523,20 @@ namespace IxMilia.Converters
             return baseShape
                 .AddStroke(ellipse.Color)
                 .AddStrokeWidth(1.0)
+                .AddVectorEffect();
+        }
+
+        public static XElement ToXElement2(this DxfEllipse ellipse, int angleResolutionInDegree = 10)
+        {
+            var path = ellipse.GetSvgPath2(angleResolutionInDegree);
+
+            XElement baseShape = new XElement(DxfToSvgConverter.Xmlns + "path",
+                                                new XAttribute("d", path.ToString()));
+
+            baseShape.Add(new XAttribute("fill-opacity", 0));
+            return baseShape
+                .AddStroke(ellipse.Color)
+                .AddStrokeWidth(0)
                 .AddVectorEffect();
         }
 
@@ -649,6 +716,15 @@ namespace IxMilia.Converters
         {
             return SvgPath.FromEllipse(ellipse.Center.X, ellipse.Center.Y, ellipse.MajorAxis.X, ellipse.MajorAxis.Y, ellipse.MinorAxisRatio, ellipse.StartParameter, ellipse.EndParameter);
         }
+        internal static SvgPath GetSvgPath2(this DxfEllipse ellipse, int angleResolutionInDegree = 10)
+        {
+            return SvgPath.FromEllipse2(ellipse.Center.X, ellipse.Center.Y, ellipse.MajorAxis.X, ellipse.MajorAxis.Y, ellipse.MinorAxisRatio, ellipse.StartParameter, ellipse.EndParameter,angleResolutionInDegree: angleResolutionInDegree);
+        }
+
+        internal static SvgPath GetSvgPath(this IList<BoundaryPathEdgeBase> edges)
+        {
+            return SvgPath.FromHatch(edges);
+        }
 
         internal static SvgPath GetSvgPath(this DxfLwPolyline poly)
         {
@@ -708,6 +784,20 @@ namespace IxMilia.Converters
             }
 
             return new SvgPath(segments);
+        }
+
+        public static SvgEllipseLineToPath TransformAngle(this SvgEllipseLineToPath pOriginal, double centerX, double centerY, double alpha)
+        {
+            var corrLocationX = pOriginal.LocationX - centerX;
+            var corrLocationY = pOriginal.LocationY - centerY;
+
+            // X-Koordinate
+            double transX = corrLocationX * Math.Cos(alpha) - corrLocationY * Math.Sin(alpha) + centerX;
+
+            // Y-Koordinate
+            double transY = corrLocationX * Math.Sin(alpha) + corrLocationY * Math.Cos(alpha) + centerY;
+
+            return new SvgEllipseLineToPath(pOriginal.AngleRadian, transX, transY);
         }
 
         private static XElement AddFill(this XElement element, DxfColor color)
