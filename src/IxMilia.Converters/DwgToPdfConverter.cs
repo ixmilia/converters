@@ -21,12 +21,12 @@ namespace IxMilia.Converters
 
     public class DwgToPdfConverterOptions : DxfToPdfConverterOptions
     {
-        public DwgToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, double scale, Func<string, Task<byte[]>> contentResolver = null)
+        public DwgToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, double scale, Func<string, Task<byte[]>>? contentResolver = null)
             : base(pageWidth, pageHeight, scale, contentResolver)
         {
         }
 
-        public DwgToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDwgRect dwgSource, ConverterPdfRect pdfDestination, Func<string, Task<byte[]>> contentResolver = null)
+        public DwgToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDwgRect dwgSource, ConverterPdfRect pdfDestination, Func<string, Task<byte[]>>? contentResolver = null)
             : base(pageWidth, pageHeight, dwgSource, pdfDestination, contentResolver)
         {
         }

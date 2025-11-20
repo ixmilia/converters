@@ -30,17 +30,20 @@ namespace IxMilia.Converters
 
         public static DwgVector ToDwgVector(this DxfVector vector) => new DwgVector(vector.X, vector.Y, vector.Z);
 
-        private static TDimension ToDimension<TDimension>(DxfDimensionBase dim, DwgDrawing drawing, TDimension result) where TDimension : DwgDimension
+        private static TDimension ToDimension<TDimension>(DxfFile source, DxfDimensionBase dim, DwgDrawing drawing, TDimension result) where TDimension : DwgDimension
         {
-            var layer = drawing.EnsureLayer(dim.Layer, DwgColor.FromIndex(1), dim.LineTypeName);
-            result.AnonymousBlock = drawing.EnsureBlock(layer, "*D0");
-            result.DimensionStyle = drawing.EnsureDimensionStyle(dim.DimensionStyleName);
+            var dimensionTextStyleName = GetDimensionTextStyleName(dim, source);
+            result.DimensionStyle = drawing.EnsureDimensionStyle(dim.DimensionStyleName, dimensionTextStyleName);
             return result.WithCommonProperties(dim);
         }
 
-        public static DwgDimensionAligned ToDwgAlignedDimension(this DxfAlignedDimension aligned, DwgDrawing drawing)
+        public static DwgDimensionAligned ToDwgAlignedDimension(this DxfAlignedDimension aligned, DxfFile source, DwgDrawing drawing)
         {
-            return ToDimension(aligned, drawing, new DwgDimensionAligned()
+            var layer = drawing.EnsureLayer(aligned.Layer, DwgColor.FromIndex(1), aligned.LineTypeName);
+            var anonymousBlock = drawing.EnsureBlock(layer, "*D0");
+            var dimensionTextStyleName = GetDimensionTextStyleName(aligned, source);
+            var dimensionStyle = drawing.EnsureDimensionStyle(aligned.DimensionStyleName, dimensionTextStyleName);
+            return ToDimension(source, aligned, drawing, new DwgDimensionAligned(dimensionStyle, anonymousBlock)
             {
                 FirstDefinitionPoint = aligned.DefinitionPoint1.ToDwgPoint(),
                 SecondDefinitionPoint = aligned.DefinitionPoint2.ToDwgPoint(),
@@ -78,7 +81,7 @@ namespace IxMilia.Converters
 
         public static DwgInsert ToDwgInsert(this DxfInsert insert, DwgDrawing drawing)
         {
-            return new DwgInsert(drawing.BlockHeaders[insert.Name])
+            return new DwgInsert(drawing.BlockHeaders[insert.Name ?? string.Empty])
             {
                 Layer = drawing.EnsureLayer(insert.Layer, DwgColor.FromIndex(1), insert.LineTypeName),
                 LineType = drawing.EnsureLineType(insert.LineTypeName),
@@ -123,9 +126,13 @@ namespace IxMilia.Converters
             }
         }
 
-        public static DwgDimensionOrdinate ToDwgRotatedDimension(this DxfRotatedDimension rotated, DwgDrawing drawing)
+        public static DwgDimensionOrdinate ToDwgRotatedDimension(this DxfRotatedDimension rotated, DxfFile source, DwgDrawing drawing)
         {
-            return ToDimension(rotated, drawing, new DwgDimensionOrdinate()
+            var layer = drawing.EnsureLayer(rotated.Layer, DwgColor.FromIndex(1), rotated.LineTypeName);
+            var anonymousBlock = drawing.EnsureBlock(layer, "*D0");
+            var dimensionTextStyleName = GetDimensionTextStyleName(rotated, source);
+            var dimensionStyle = drawing.EnsureDimensionStyle(rotated.DimensionStyleName, dimensionTextStyleName);
+            return ToDimension(source, rotated, drawing, new DwgDimensionOrdinate(dimensionStyle, anonymousBlock)
             {
                 FirstDefinitionPoint = rotated.DefinitionPoint1.ToDwgPoint(),
                 SecondDefinitionPoint = rotated.DefinitionPoint2.ToDwgPoint(),
@@ -240,6 +247,11 @@ namespace IxMilia.Converters
                 default:
                     throw new ArgumentOutOfRangeException(nameof(drawingUnits));
             }
+        }
+
+        public static string GetDimensionTextStyleName(this DxfDimensionBase dim, DxfFile source)
+        {
+            return source.DimensionStyles.FirstOrDefault(ds => ds.Name == dim.DimensionStyleName)?.DimensionTextStyle ?? "STANDARD";
         }
     }
 }

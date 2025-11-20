@@ -176,7 +176,7 @@ namespace IxMilia.Converters
 
         public static DxfText ToDxfText(this DwgText text)
         {
-            return new DxfText(text.InsertionPoint.ToDxfPoint(), text.Height, text.Value)
+            return new DxfText(text.InsertionPoint.ToDxfPoint(), text.Height, text.Value ?? string.Empty)
             {
                 Elevation = text.Elevation,
                 Normal = text.Extrusion.ToDxfVector(),
@@ -211,11 +211,12 @@ namespace IxMilia.Converters
             return drawing.BlockHeaders[name].Block;
         }
 
-        public static DwgDimStyle EnsureDimensionStyle(this DwgDrawing drawing, string name)
+        public static DwgDimStyle EnsureDimensionStyle(this DwgDrawing drawing, string name, string dimensionTextStyleName)
         {
             if (!drawing.DimStyles.ContainsKey(name))
             {
-                var dwgDimStyle = new DwgDimStyle(name)
+                var dimensionTextStyle = drawing.EnsureTextStyle(dimensionTextStyleName);
+                var dwgDimStyle = new DwgDimStyle(name, dimensionTextStyle)
                 {
                     // TODO
                 };
@@ -243,15 +244,26 @@ namespace IxMilia.Converters
         {
             if (!drawing.Layers.ContainsKey(layerName))
             {
-                var newLayer = new DwgLayer(layerName)
+                var lineType = drawing.EnsureLineType(lineTypeName);
+                var newLayer = new DwgLayer(layerName, lineType)
                 {
                     Color = color,
-                    LineType = drawing.EnsureLineType(lineTypeName),
                 };
                 drawing.Layers.Add(newLayer);
             }
 
             return drawing.Layers[layerName];
+        }
+
+        public static DwgStyle EnsureTextStyle(this DwgDrawing drawing, string name)
+        {
+            if (!drawing.Styles.ContainsKey(name))
+            {
+                var newStyle = new DwgStyle(name);
+                drawing.Styles.Add(newStyle);
+            }
+
+            return drawing.Styles[name];
         }
 
         public static DwgLineType LineTypeOrCurrent(this DwgDrawing drawing, string lineTypeName)

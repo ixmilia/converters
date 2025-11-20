@@ -6,7 +6,7 @@ namespace IxMilia.Converters
 {
     public class LinearDimensionProperties
     {
-        public string DisplayText { get; }
+        public string? DisplayText { get; }
         public double DimensionLength { get; }
         public double DimensionLineAngle { get; }
         public Vector DimensionLineStart { get; }
@@ -17,7 +17,7 @@ namespace IxMilia.Converters
 
 
         public LinearDimensionProperties(
-            string displayText,
+            string? displayText,
             double dimensionLength,
             double dimensionLineAngle,
             Vector dimensionLineStart,
@@ -82,7 +82,7 @@ namespace IxMilia.Converters
             Vector definitionPoint2,
             Vector selectedDimensionLineLocation,
             bool isAligned,
-            string displayText,
+            string? displayText,
             double textWidth,
             DimensionSettings dimensionSettings)
         {

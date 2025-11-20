@@ -232,7 +232,7 @@ namespace IxMilia.Converters
 
                 foreach (var entity in block.Entities)
                 {
-                    ConvertAndAddEntityToBlockHeader(entity, target, dwgBlockHeader.Name);
+                    ConvertAndAddEntityToBlockHeader(source, entity, target, dwgBlockHeader.Name);
                 }
             }
         }
@@ -241,7 +241,11 @@ namespace IxMilia.Converters
         {
             foreach (var dimStyle in source.DimensionStyles)
             {
-                var dwgDimStyle = new DwgDimStyle(dimStyle.Name)
+                var dimensionTextStyleName = string.IsNullOrEmpty(dimStyle.DimensionTextStyle)
+                    ? source.Header.DimensionTextStyle
+                    : dimStyle.DimensionTextStyle;
+                var dimensionTextStyle = target.EnsureTextStyle(dimensionTextStyleName);
+                var dwgDimStyle = new DwgDimStyle(dimStyle.Name, dimensionTextStyle)
                 {
                     // regular properties
                     DimensioningSuffix = dimStyle.DimensioningSuffix,
@@ -298,7 +302,7 @@ namespace IxMilia.Converters
                     DimensionCursorControlsTextPosition = dimStyle.DimensionCursorControlsTextPosition,
 
                     // other properties
-                    Style = target.Styles[dimStyle.DimensionTextStyle ?? source.Header.DimensionTextStyle],
+                    DimensionTextStyle = target.Styles[dimensionTextStyleName],
                 };
                 target.DimStyles.Remove(dimStyle.Name);
                 target.DimStyles.Add(dwgDimStyle);
@@ -325,7 +329,7 @@ namespace IxMilia.Converters
                 target.LineTypes.Add(dwgLineType);
             }
 
-            if (source.Header.CurrentEntityLineType is object &&
+            if (!string.IsNullOrEmpty(source.Header.CurrentEntityLineType) &&
                 !target.LineTypes.ContainsKey(source.Header.CurrentEntityLineType))
             {
                 // current line type doesn't exist; create it
@@ -339,10 +343,10 @@ namespace IxMilia.Converters
         {
             foreach (var layer in source.Layers)
             {
-                var dwgLayer = new DwgLayer(layer.Name)
+                var lineType = target.LineTypeOrCurrent(layer.LineTypeName);
+                var dwgLayer = new DwgLayer(layer.Name, lineType)
                 {
                     Color = layer.Color.ToDwgColor(),
-                    LineType = target.LineTypeOrCurrent(layer.LineTypeName),
                 };
                 target.Layers.Add(dwgLayer);
             }
@@ -363,16 +367,16 @@ namespace IxMilia.Converters
         {
             foreach (var entity in source.Entities)
             {
-                ConvertAndAddEntityToBlockHeader(entity, target, target.ModelSpaceBlockRecord.Name);
+                ConvertAndAddEntityToBlockHeader(source, entity, target, target.ModelSpaceBlockRecord.Name);
             }
         }
 
-        private static void ConvertAndAddEntityToBlockHeader(DxfEntity entity, DwgDrawing drawing, string blockHeaderName)
+        private static void ConvertAndAddEntityToBlockHeader(DxfFile source, DxfEntity entity, DwgDrawing drawing, string blockHeaderName)
         {
             switch (entity)
             {
                 case DxfAlignedDimension aligned:
-                    AddToDrawing(aligned.ToDwgAlignedDimension(drawing), aligned.Layer, aligned.LineTypeName);
+                    AddToDrawing(aligned.ToDwgAlignedDimension(source, drawing), aligned.Layer, aligned.LineTypeName);
                     break;
                 case DxfArc arc:
                     AddToDrawing(arc.ToDwgArc(), arc.Layer, entity.LineTypeName);
@@ -399,7 +403,7 @@ namespace IxMilia.Converters
                     AddToDrawing(polyline.ToDwgPolyline(), polyline.Layer, entity.LineTypeName);
                     break;
                 case DxfRotatedDimension rotated:
-                    AddToDrawing(rotated.ToDwgRotatedDimension(drawing), rotated.Layer, rotated.LineTypeName);
+                    AddToDrawing(rotated.ToDwgRotatedDimension(source, drawing), rotated.Layer, rotated.LineTypeName);
                     break;
                 case DxfSolid solid:
                     AddToDrawing(solid.ToDwgSolid(), solid.Layer, solid.LineTypeName);

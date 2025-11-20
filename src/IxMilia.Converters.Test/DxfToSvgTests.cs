@@ -233,8 +233,7 @@ namespace IxMilia.Converters.Test
         [Fact]
         public async Task RenderInsertTest()
         {
-            var block = new DxfBlock();
-            block.Name = "some-block";
+            var block = new DxfBlock("some-block");
             block.Entities.Add(new DxfLine(new DxfPoint(0.0, 0.0, 0.0), new DxfPoint(10.0, 10.0, 0.0)));
 
             var insert = new DxfInsert();
@@ -253,7 +252,9 @@ namespace IxMilia.Converters.Test
                     new XAttribute("stroke-width", "1.0px"),
                     new XAttribute("vector-effect", "non-scaling-stroke")));
 
-            var actual = await insert.ToXElement(default, default, default, default, default);
+            var converterOptions = new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect()); // unused, but necessary for the call
+            var dimStyles = new Dictionary<string, DxfDimStyle>(); // unused, but necessary for the call
+            var actual = await insert.ToXElement(converterOptions, dimStyles, default, default, default);
             AssertXElement(expected, actual);
         }
 
@@ -488,7 +489,7 @@ namespace IxMilia.Converters.Test
         {
             var element = await new DxfToSvgConverter().Convert(new DxfFile(), new DxfToSvgConverterOptions(new ConverterDxfRect(), new ConverterSvgRect(), svgId: "test-id"));
             Assert.Equal("div", element.Name.LocalName);
-            Assert.Equal("test-id", element.Attribute("id").Value);
+            Assert.Equal("test-id", element.Attribute("id")!.Value);
             var children = element.Elements().ToList();
             Assert.Equal(5, children.Count);
 
@@ -497,18 +498,18 @@ namespace IxMilia.Converters.Test
 
             var controls = children[1];
             Assert.Equal("details", controls.Name.LocalName);
-            Assert.Equal("Controls", controls.Element("summary").Value);
+            Assert.Equal("Controls", controls.Element("summary")!.Value);
 
             var layers = children[2];
             Assert.Equal("details", layers.Name.LocalName);
-            Assert.Equal("Layers", layers.Element("summary").Value);
+            Assert.Equal("Layers", layers.Element("summary")!.Value);
 
             var svg = children[3];
             Assert.Equal("svg", svg.Name.LocalName);
 
             var script = children[4];
             Assert.Equal("script", script.Name.LocalName);
-            Assert.Equal("text/javascript", script.Attribute("type").Value);
+            Assert.Equal("text/javascript", script.Attribute("type")!.Value);
             Assert.Contains("function", script.Value);
             Assert.DoesNotContain("&gt;", script.Value);
         }
@@ -531,7 +532,7 @@ namespace IxMilia.Converters.Test
 
             // ...then get the last child
             var last = element.Elements().Last();
-            Assert.Equal("none", last.Attribute("display").Value);
+            Assert.Equal("none", last.Attribute("display")!.Value);
         }
     }
 }

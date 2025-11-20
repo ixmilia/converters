@@ -17,12 +17,12 @@ namespace IxMilia.Converters
         public PdfMeasurement PageWidth { get; }
         public PdfMeasurement PageHeight { get; }
         public double Scale { get; }
-        public ConverterDxfRect DxfRect { get; }
-        public ConverterPdfRect PdfRect { get; }
+        public ConverterDxfRect? DxfRect { get; }
+        public ConverterPdfRect? PdfRect { get; }
 
-        private Func<string, Task<byte[]>> _contentResolver;
+        private Func<string, Task<byte[]>>? _contentResolver;
 
-        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, double scale, Func<string, Task<byte[]>> contentResolver = null)
+        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, double scale, Func<string, Task<byte[]>>? contentResolver = null)
         {
             PageWidth = pageWidth;
             PageHeight = pageHeight;
@@ -32,7 +32,7 @@ namespace IxMilia.Converters
             _contentResolver = contentResolver;
         }
 
-        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDxfRect dxfSource, ConverterPdfRect pdfDestination, Func<string, Task<byte[]>> contentResolver = null)
+        public DxfToPdfConverterOptions(PdfMeasurement pageWidth, PdfMeasurement pageHeight, ConverterDxfRect dxfSource, ConverterPdfRect pdfDestination, Func<string, Task<byte[]>>? contentResolver = null)
         {
             PageWidth = pageWidth;
             PageHeight = pageHeight;
@@ -42,8 +42,13 @@ namespace IxMilia.Converters
             _contentResolver = contentResolver;
         }
 
-        public async Task<byte[]> ResolveContentAsync(string path)
+        public async Task<byte[]?> ResolveContentAsync(string? path)
         {
+            if (path is null)
+            {
+                return null;
+            }
+
             if (_contentResolver != null)
             {
                 var content = await _contentResolver(path);
@@ -64,7 +69,7 @@ namespace IxMilia.Converters
         public async Task<PdfFile> Convert(DxfFile source, DxfToPdfConverterOptions options)
         {
             // adapted from https://github.com/ixmilia/bcad/blob/main/src/IxMilia.BCad.FileHandlers/Plotting/Pdf/PdfPlotter.cs
-            var transform = CreateTransformation(source.ActiveViewPort, options);
+            var transform = CreateTransformation(source.ActiveViewPort!, options);
             var pdf = new PdfFile();
             var page = new PdfPage(options.PageWidth, options.PageHeight);
             pdf.Pages.Add(page);
@@ -523,11 +528,11 @@ namespace IxMilia.Converters
                 startAngle, endAngle, pdfStreamState);
         }
 
-        private static async Task<PdfImageItem> TryConvertImage(DxfImage image, DxfLayer layer, Matrix4 transform, DxfToPdfConverterOptions options)
+        private static async Task<PdfImageItem?> TryConvertImage(DxfImage image, DxfLayer layer, Matrix4 transform, DxfToPdfConverterOptions options)
         {
             // prepare image decoders
             IPdfEncoder[] encoders = Array.Empty<IPdfEncoder>();
-            switch (Path.GetExtension(image.ImageDefinition.FilePath).ToLowerInvariant())
+            switch (Path.GetExtension(image.ImageDefinition?.FilePath)?.ToLowerInvariant())
             {
                 case ".jpg":
                 case ".jpeg":
@@ -541,7 +546,7 @@ namespace IxMilia.Converters
             }
 
             // get raw image bytes
-            var imageBytes = await options.ResolveContentAsync(image.ImageDefinition.FilePath);
+            var imageBytes = await options.ResolveContentAsync(image.ImageDefinition?.FilePath);
             if (imageBytes == null)
             {
                 // couldn't resolve image content
@@ -576,8 +581,8 @@ namespace IxMilia.Converters
             {
                 return ToPdfColor(rgb);
             }
-            DxfColor c = GetFinalDxfColor(entity, layer);
-            if (c != null && c.IsIndex)
+            var c = GetFinalDxfColor(entity, layer);
+            if (c is not null && c.IsIndex)
             {
                 rgb = c.ToRGB();
                 return ToPdfColor(rgb);
@@ -605,10 +610,10 @@ namespace IxMilia.Converters
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static DxfColor GetFinalDxfColor(DxfEntity entity, DxfLayer layer)
+        private static DxfColor? GetFinalDxfColor(DxfEntity entity, DxfLayer layer)
         {
             DxfColor c = entity.Color;
-            if (c == null || c.IsByLayer)
+            if (c.IsByLayer)
             {
                 return layer.Color;
             }

@@ -26,8 +26,11 @@ namespace IxMilia.Converters
             result.Header.Version = options.TargetVersion;
             result.Header.CurrentLayer = source.CurrentLayer.Name;
 
-            result.ActiveViewPort.LowerLeft = source.ViewPorts["*ACTIVE"].LowerLeft.ToDxfPoint();
-            result.ActiveViewPort.ViewHeight = source.ViewPorts["*ACTIVE"].Height;
+            if (result.ActiveViewPort is not null)
+            {
+                result.ActiveViewPort.LowerLeft = source.ViewPorts["*ACTIVE"].LowerLeft.ToDxfPoint();
+                result.ActiveViewPort.ViewHeight = source.ViewPorts["*ACTIVE"].Height;
+            }
 
             // TODO: convert the other things
             ConvertHeaderVariables(result, source);
@@ -41,16 +44,18 @@ namespace IxMilia.Converters
                     continue;
                 }
 
-                var dxfBlock = new DxfBlock()
+                var dxfBlock = new DxfBlock(blockHeader.Name)
                 {
                     BasePoint = blockHeader.BasePoint.ToDxfPoint(),
-                    Name = blockHeader.Name,
                     Layer = blockHeader.Block.Layer.Name,
                 };
                 foreach (var entity in blockHeader.Entities)
                 {
                     var dxfEntity = ConvertEntity(entity);
-                    dxfBlock.Entities.Add(dxfEntity);
+                    if (dxfEntity is not null)
+                    {
+                        dxfBlock.Entities.Add(dxfEntity);
+                    }
                 }
 
                 result.Blocks.Add(dxfBlock);
@@ -317,7 +322,7 @@ namespace IxMilia.Converters
             // $CMATERIAL will be handled elsewhere
         }
 
-        private static DxfEntity ConvertEntity(DwgEntity entity)
+        private static DxfEntity? ConvertEntity(DwgEntity entity)
         {
             return entity switch
             {

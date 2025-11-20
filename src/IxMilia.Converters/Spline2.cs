@@ -40,7 +40,7 @@ namespace IxMilia.Converters
             return new SplinePoint2(p.X * scalar, p.Y * scalar);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is SplinePoint2 point &&
                 this == point;

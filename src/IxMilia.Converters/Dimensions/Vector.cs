@@ -48,10 +48,6 @@ namespace IxMilia.Converters
 
         public static bool operator ==(Vector p1, Vector p2)
         {
-            if (object.ReferenceEquals(p1, p2))
-                return true;
-            if (((object)p1 == null) || ((object)p2 == null))
-                return false;
             return p1.X == p2.X && p1.Y == p2.Y && p1.Z == p2.Z;
         }
 
@@ -80,7 +76,7 @@ namespace IxMilia.Converters
             return new Vector(p.X / scalar, p.Y / scalar, p.Z / scalar);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj == null)
                 return false;

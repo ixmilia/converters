@@ -16,10 +16,10 @@ namespace IxMilia.Converters
     {
         public ConverterDxfRect DxfRect { get; }
         public ConverterSvgRect SvgRect { get; }
-        public string SvgId { get; }
+        public string? SvgId { get; }
         public Func<string, Task<string>> ImageHrefResolver { get; }
 
-        public DxfToSvgConverterOptions(ConverterDxfRect dxfRect, ConverterSvgRect svgRect, string svgId = null, Func<string, Task<string>> imageHrefResolver = null)
+        public DxfToSvgConverterOptions(ConverterDxfRect dxfRect, ConverterSvgRect svgRect, string? svgId = null, Func<string, Task<string>>? imageHrefResolver = null)
         {
             DxfRect = dxfRect;
             SvgRect = svgRect;
@@ -159,7 +159,7 @@ namespace IxMilia.Converters
             return root;
         }
 
-        private static XElement TransformToHtmlDiv(XElement svg, string svgId, IEnumerable<string> layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
+        private static XElement TransformToHtmlDiv(XElement svg, string? svgId, IEnumerable<string> layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
         {
             if (string.IsNullOrWhiteSpace(svgId))
             {
@@ -207,31 +207,37 @@ namespace IxMilia.Converters
         private static string GetJavascriptControls(string svgId, IEnumerable<string> layerNames, double defaultXTranslate, double defaultYTranslate, double defaultXScale, double defaultYScale)
         {
             var assembly = typeof(DxfToSvgConverter).GetTypeInfo().Assembly;
-            using (var jsStream = assembly.GetManifestResourceStream("IxMilia.Converters.SvgJavascriptControls.js"))
-            using (var streamReader = new StreamReader(jsStream))
+            using var jsStream = assembly.GetManifestResourceStream("IxMilia.Converters.SvgJavascriptControls.js");
+            if (jsStream is null)
             {
-                var contents = Environment.NewLine + streamReader.ReadToEnd();
-                contents = contents
-                    .Replace("$DRAWING-ID$", svgId)
-                    .Replace("$LAYER-NAMES$", $"[{string.Join(", ", layerNames.Select(layer => $"\"{layer}\""))}]")
-                    .Replace("$DEFAULT-X-TRANSLATE$", defaultXTranslate.ToDisplayString())
-                    .Replace("$DEFAULT-Y-TRANSLATE$", defaultYTranslate.ToDisplayString())
-                    .Replace("$DEFAULT-X-SCALE$", defaultXScale.ToDisplayString())
-                    .Replace("$DEFAULT-Y-SCALE$", defaultYScale.ToDisplayString());
-                return contents;
+                throw new InvalidOperationException("Could not find embedded javascript resource.");
             }
+
+            using var streamReader = new StreamReader(jsStream);
+            var contents = Environment.NewLine + streamReader.ReadToEnd();
+            contents = contents
+                .Replace("$DRAWING-ID$", svgId)
+                .Replace("$LAYER-NAMES$", $"[{string.Join(", ", layerNames.Select(layer => $"\"{layer}\""))}]")
+                .Replace("$DEFAULT-X-TRANSLATE$", defaultXTranslate.ToDisplayString())
+                .Replace("$DEFAULT-Y-TRANSLATE$", defaultYTranslate.ToDisplayString())
+                .Replace("$DEFAULT-X-SCALE$", defaultXScale.ToDisplayString())
+                .Replace("$DEFAULT-Y-SCALE$", defaultYScale.ToDisplayString());
+            return contents;
         }
 
         private static string GetCss()
         {
             var assembly = typeof(DxfToSvgConverter).GetTypeInfo().Assembly;
-            using (var jsStream = assembly.GetManifestResourceStream("IxMilia.Converters.SvgStyles.css"))
-            using (var streamReader = new StreamReader(jsStream))
+            using var cssStream = assembly.GetManifestResourceStream("IxMilia.Converters.SvgStyles.css");
+            if (cssStream is null)
             {
-                var contents = Environment.NewLine + streamReader.ReadToEnd();
-                // perform replacements when necessary
-                return contents;
+                throw new InvalidOperationException("Could not find embedded CSS resource.");
             }
+
+            using var streamReader = new StreamReader(cssStream);
+            var contents = Environment.NewLine + streamReader.ReadToEnd();
+            // perform replacements when necessary
+            return contents;
         }
 
         private class XRawText : XText
@@ -287,7 +293,7 @@ namespace IxMilia.Converters
             return value.ToString("0.0##############", CultureInfo.InvariantCulture);
         }
 
-        public static async Task<XElement> ToXElement(this DxfEntity entity, DxfToSvgConverterOptions options, Dictionary<string, DxfDimStyle> dimStyles, DxfDrawingUnits drawingUnits, DxfUnitFormat unitFormat, int unitPrecision)
+        public static async Task<XElement?> ToXElement(this DxfEntity entity, DxfToSvgConverterOptions options, Dictionary<string, DxfDimStyle> dimStyles, DxfDrawingUnits drawingUnits, DxfUnitFormat unitFormat, int unitPrecision)
         {
             // elements are simply flattened in the z plane; the world transform in the main function handles the rest
             switch (entity)
@@ -345,7 +351,7 @@ namespace IxMilia.Converters
                 .AddVectorEffect();
         }
 
-        public static XElement ToXElement(this DxfDimensionBase dim, Dictionary<string, DxfDimStyle> dimStyles, DxfDrawingUnits drawingUnits, DxfUnitFormat unitFormat, int unitPrecision)
+        public static XElement? ToXElement(this DxfDimensionBase dim, Dictionary<string, DxfDimStyle> dimStyles, DxfDrawingUnits drawingUnits, DxfUnitFormat unitFormat, int unitPrecision)
         {
             if (!dimStyles.TryGetValue(dim.DimensionStyleName, out var dimStyle))
             {
@@ -475,7 +481,12 @@ namespace IxMilia.Converters
 
         public static async Task<XElement> ToXElement(this DxfImage image, DxfToSvgConverterOptions options)
         {
-            var imageHref = await options.ResolveImageHrefAsync(image.ImageDefinition.FilePath);
+            if (string.IsNullOrEmpty(image.ImageDefinition?.FilePath))
+            {
+                throw new InvalidOperationException("Cannot render image without a valid image definition file path.");
+            }
+
+            var imageHref = await options.ResolveImageHrefAsync(image.ImageDefinition!.FilePath);
             var imageWidth = image.UVector.Length * image.ImageSize.X;
             var imageHeight = image.VVector.Length * image.ImageSize.Y;
             var radians = Math.Atan2(image.UVector.Y, image.UVector.X);

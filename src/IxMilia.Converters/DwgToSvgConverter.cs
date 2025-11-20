@@ -8,7 +8,7 @@ namespace IxMilia.Converters
 {
     public class DwgToSvgConverterOptions : DxfToSvgConverterOptions
     {
-        public DwgToSvgConverterOptions(ConverterDwgRect dwgRect, ConverterSvgRect svgRect, string svgId = null, Func<string, Task<string>> imageHrefResolver = null)
+        public DwgToSvgConverterOptions(ConverterDwgRect dwgRect, ConverterSvgRect svgRect, string? svgId = null, Func<string, Task<string>>? imageHrefResolver = null)
             : base(dwgRect, svgRect, svgId, imageHrefResolver)
         {
         }

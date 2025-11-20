@@ -90,6 +90,7 @@ namespace IxMilia.Converters.Test
             var dwg = await Convert(dxf, DwgVersionId.R14);
             var line = (DwgLine)dwg.ModelSpaceBlockRecord.Entities.Single();
             Assert.Equal("layer-that-does-not-exist", line.Layer.Name);
+            Assert.NotNull(line.LineType);
             Assert.Equal("line-type-that-does-not-exist", line.LineType.Name);
         }
 
@@ -97,8 +98,8 @@ namespace IxMilia.Converters.Test
         public async Task LayersAndLineTypesWithWellKnownNamesAreProperlyCreatedWhenNotDefined()
         {
             var dxf = new DxfFile();
-            dxf.Header.CurrentEntityLineType = null;
-            dxf.Header.CurrentLayer = null;
+            dxf.Header.CurrentEntityLineType = string.Empty;
+            dxf.Header.CurrentLayer = string.Empty;
             var dwg = await Convert(dxf, DwgVersionId.R14);
             Assert.Equal("0", dwg.CurrentLayer.Name);
             Assert.Equal("BYBLOCK", dwg.CurrentEntityLineType.Name);
@@ -111,8 +112,7 @@ namespace IxMilia.Converters.Test
             var dxf = new DxfFile();
             dxf.Header.Version = DxfAcadVersion.R14;
 
-            var block = new DxfBlock();
-            block.Name = "my-block";
+            var block = new DxfBlock("my-block");
             block.Entities.Add(new DxfLine(new DxfPoint(1.0, 2.0, 0.0), new DxfPoint(3.0, 4.0, 0.0)));
             dxf.Blocks.Add(block);
 
