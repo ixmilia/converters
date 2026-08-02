@@ -216,14 +216,15 @@ endstream".Trim());
             Assert.Contains("144.00 0.00 0.00 144.00 72.00 72.00 cm", pdf); // transform
             Assert.Contains("/Im5 Do", pdf); // drawing instruction
             var expectedObjectHeader = NormalizeCrLf(@"
-<</Type /XObject
-  /Subtype /Image
-  /Width 16
-  /Height 16
-  /ColorSpace /DeviceRGB
-  /BitsPerComponent 8
-  /Length 4
-  /Filter [/DCTDecode]>>".Trim());
+<< /Type /XObject
+   /Subtype /Image
+   /Width 16
+   /Height 16
+   /ColorSpace /DeviceRGB
+   /BitsPerComponent 8
+   /Length 4
+   /Filter [/DCTDecode]
+>>".Trim());
             Assert.Contains(expectedObjectHeader, pdf);
         }
 
