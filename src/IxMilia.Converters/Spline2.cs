@@ -73,6 +73,9 @@ namespace IxMilia.Converters
 
     public class Spline2
     {
+        // Measured in drawing units
+        public const double DefaultApproxTolerance = 0.01;
+
         private List<SplinePoint2> _controlPoints;
         private List<double> _knotValues;
 
@@ -163,12 +166,17 @@ namespace IxMilia.Converters
 
         public IList<Bezier2> ToBeziers()
         {
-            var expectedIdenticalKnots = Degree + 1;
-            if (expectedIdenticalKnots != 4)
+            return ToBeziers(DefaultApproxTolerance);
+        }
+
+        public IList<Bezier2> ToBeziers(double approximationTolerance)
+        {
+            if (double.IsNaN(approximationTolerance) || approximationTolerance <= 0.0)
             {
-                throw new NotSupportedException("Only cubic Bezier curves of 4 points are supported.");
+                throw new ArgumentOutOfRangeException(nameof(approximationTolerance), "Tolerance must not be stupid");
             }
 
+            var expectedIdenticalKnots = Degree + 1;
             var result = new Spline2(Degree, ControlPoints, KnotValues);
 
             for (int offset = 0; ; offset++)
@@ -209,11 +217,107 @@ namespace IxMilia.Converters
             var curves = new List<Bezier2>();
             for (int startIndex = 0; startIndex < points.Count; startIndex += expectedIdenticalKnots)
             {
-                var curve = new Bezier2(points[startIndex], points[startIndex + 1], points[startIndex + 2], points[startIndex + 3]);
-                curves.Add(curve);
+                if (Degree == 2)
+                {
+                    var start = points[startIndex];
+                    var control = points[startIndex + 1];
+                    var end = points[startIndex + 2];
+                    curves.Add(new Bezier2(start,
+                        start * (1.0 / 3.0) + control * (2.0 / 3.0),
+                        end * (1.0 / 3.0) + control * (2.0 / 3.0), end));
+                }
+                else if (Degree == 3)
+                {
+                    curves.Add(new Bezier2(points[startIndex], points[startIndex + 1], points[startIndex + 2], points[startIndex + 3]));
+                }
+                else
+                {
+                    var span = points.GetRange(startIndex, expectedIdenticalKnots).ToArray();
+                    if (span.Any(p => double.IsNaN(p.X) || double.IsInfinity(p.X) || double.IsNaN(p.Y) || double.IsInfinity(p.Y)))
+                    {
+                        throw new InvalidOperationException("Spline control points must be finite.");
+                    }
+
+                    ApproximateBezier(span, approximationTolerance * approximationTolerance, curves, 0);
+                }
             }
 
             return curves;
+        }
+
+        private static void ApproximateBezier(SplinePoint2[] points, double toleranceSquared, List<Bezier2> curves, int depth)
+        {
+            var degree = points.Length - 1;
+            var start = points[0];
+            var end = points[degree];
+            var derivativeScale = degree / 3.0;
+            var cubic = new Bezier2(start,
+                start * (1.0 - derivativeScale) + points[1] * derivativeScale,
+                end * (1.0 - derivativeScale) + points[degree - 1] * derivativeScale, end);
+
+            // Elevate the cubic to the original degree. The maximum distance between corresponding control points bounds the error for the entire curve
+            var elevated = new[] { cubic.Start, cubic.Control1, cubic.Control2, cubic.End };
+            while (elevated.Length < points.Length)
+            {
+                var next = new SplinePoint2[elevated.Length + 1];
+                next[0] = elevated[0];
+                next[next.Length - 1] = elevated[elevated.Length - 1];
+                for (int i = 1; i < elevated.Length; i++)
+                {
+                    var alpha = (double)i / elevated.Length;
+                    next[i] = elevated[i - 1] * alpha + elevated[i] * (1.0 - alpha);
+                }
+
+                elevated = next;
+            }
+
+            var withinTolerance = true;
+            for (int i = 0; i < points.Length; i++)
+            {
+                var dx = points[i].X - elevated[i].X;
+                var dy = points[i].Y - elevated[i].Y;
+                if (dx * dx + dy * dy > toleranceSquared)
+                {
+                    withinTolerance = false;
+                    break;
+                }
+            }
+
+            if (withinTolerance)
+            {
+                if (curves.Count >= 100000)
+                {
+                    throw new InvalidOperationException("Spline too big.");
+                }
+
+                curves.Add(cubic);
+                return;
+            }
+
+            if (depth >= 32)
+            {
+                throw new InvalidOperationException("Spline couldn't reach tolerance.");
+            }
+
+            // Split at t=0.5 using de Castelau, keep shared endpoint
+            var work = (SplinePoint2[])points.Clone();
+            var left = new SplinePoint2[points.Length];
+            var right = new SplinePoint2[points.Length];
+            left[0] = start;
+            right[degree] = end;
+            for (int level = 1; level <= degree; level++)
+            {
+                for (int i = 0; i <= degree - level; i++)
+                {
+                    work[i] = work[i] * 0.5 + work[i + 1] * 0.5;
+                }
+
+                left[level] = work[0];
+                right[degree - level] = work[degree - level];
+            }
+
+            ApproximateBezier(left, toleranceSquared, curves, depth + 1);
+            ApproximateBezier(right, toleranceSquared, curves, depth + 1);
         }
     }
 }
